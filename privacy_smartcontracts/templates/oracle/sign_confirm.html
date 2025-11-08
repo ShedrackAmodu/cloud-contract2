@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Sign attestation for request {{ request_obj.id }}</h2>
+<p>Contract: {{ request_obj.contract.title }}</p>
+<p>Requester: {{ request_obj.requester.get_username }}</p>
+<form method="post">{% csrf_token %}
+  <button type="submit">Create Attestation</button>
+  <a href="{% url 'oracle:pending' %}">Cancel</a>
+</form>
+{% endblock %}

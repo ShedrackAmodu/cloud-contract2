@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>{% if object %}Edit Contract{% else %}Create Contract{% endif %}</h1>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+  <p>
+    {{ form.title.label_tag }}<br>
+    {{ form.title }}
+  </p>
+  <p>
+    {{ form.description.label_tag }}<br>
+    {{ form.description }}
+  </p>
+  <p>
+    {{ form.attachment.label_tag }}<br>
+    {{ form.attachment }}
+    {% if object and object.attachment %}
+      <br><small>Current attached file: <a href="{{ object.attachment.url }}">{{ object.attachment.name|basename }}</a></small>
+    {% endif %}
+  </p>
+  <p>
+    {{ form.policy_json.label_tag }}<br>
+    {{ form.policy_json }}
+    <br><small>Example: {"purpose":"research","retention_days":30}</small>
+  </p>
+  <p>
+    {{ form.status.label_tag }}<br>
+    {{ form.status }}
+  </p>
+
+  <button type="submit">Save</button>
+</form>
+{% endblock %}

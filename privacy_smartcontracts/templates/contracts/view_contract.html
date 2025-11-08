@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>{{ contract.title }}</h1>
+<p><strong>Owner:</strong> {{ contract.owner.get_username }}</p>
+<p><strong>Status:</strong> {{ contract.status }}</p>
+<p><strong>Created:</strong> {{ contract.created_at }}</p>
+{% if contract.description %}
+  <h3>Description</h3>
+  <div>{{ contract.description|linebreaks }}</div>
+{% endif %}
+
+{% if contract.attachment %}
+  <h3>Attachment</h3>
+  <p><a href="{{ contract.attachment.url }}">Download attachment</a></p>
+{% endif %}
+
+{% if contract.policy %}
+  <h3>Policy</h3>
+  <pre>{{ contract.policy|json_script:"contract_policy" }}</pre>
+{% endif %}
+
+<p><a href="{% url 'contracts:dashboard' %}">Back to dashboard</a>
+{% if contract.owner == user or user.is_superuser %}
+  — <a href="{% url 'contracts:edit' contract.pk %}">Edit</a>
+{% endif %}
+{% if user.is_authenticated and user != contract.owner %}
+  <p><a href="{% url 'requests_app:create_request' contract.id %}">Request access to this contract</a></p>
+{% endif %}
+
+</p>
+{% endblock %}

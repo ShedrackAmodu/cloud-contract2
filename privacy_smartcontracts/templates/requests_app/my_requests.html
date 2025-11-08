@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Your Requests</h2>
+<ul>
+  {% for r in requests %}
+    <li>{{ r.contract.title }} — {{ r.status }} — created {{ r.created_at }} 
+      {% if r.status == 'APPROVED' %}
+        — <a href="{% url 'access_proxy:retrieve' r.id %}">Retrieve file</a>
+      {% endif %}
+    </li>
+  {% empty %}
+    <li>No requests found.</li>
+  {% endfor %}
+</ul>
+{% endblock %}
