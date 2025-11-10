@@ -6,13 +6,14 @@ This is a **3-week PoC** demonstrating privacy-preserving smart contracts with:
 
 - Policy creation & management (Owner)
 - Requestor flow to request access
-- Mock Oracle that signs attestations (PoC for ZKP/TEE)
+- **Secure Computational Layer** with ZKP Engine, TEE Gateway, and SMPC Node
+- Mock Oracle that signs attestations
 - Access Proxy that verifies attestation & issues ephemeral access
 - Encrypted storage (local, Fernet-based)
 - Authentication (owner/requester/admin), audit log
 - Docker-ready & CI-friendly
 
-> **Note:** For PoC, ZKP/TEE is mocked. Full integration requires more work.
+> **Note:** For PoC, ZKP/TEE/SMPC are mocked. Full integration requires more work.
 
 ---
 
@@ -22,6 +23,7 @@ privacy_smartcontracts/
 ├─ contracts/ # contract/policy management
 ├─ storage/ # encrypted file storage
 ├─ requests_app/ # data access request handling
+├─ secure_computation/ # ZKP Engine, TEE Gateway, SMPC Node
 ├─ oracle/ # mock oracle to sign requests
 ├─ access_proxy/ # retrieves file after verifying attestation
 ├─ audit/ # logs all events

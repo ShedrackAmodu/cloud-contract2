@@ -1,4 +1,4 @@
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.http import HttpResponse
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -25,32 +25,32 @@ def retrieve(request, data_request_id):
     dar = get_object_or_404(DataAccessRequest, pk=data_request_id)
     # ensure requester matches the user (only requester can retrieve)
     if request.user != dar.requester and not request.user.is_superuser:
-        return HttpResponse("Not authorized", status=403)
+        return render(request, 'access_proxy/error.html', {'error': 'Not authorized'})
 
     # find attestation
     att = Attestation.objects.filter(data_request=dar).order_by('-issued_at').first()
     if not att:
-        return HttpResponse("Attestation not found", status=404)
+        return render(request, 'access_proxy/error.html', {'error': 'Attestation not found'})
 
     # verify signature
     pub = load_public_key()
     if not pub:
-        return HttpResponse("Server misconfigured: ORACLE_PUBLIC_KEY missing", status=500)
+        return render(request, 'access_proxy/error.html', {'error': 'Server misconfigured: ORACLE_PUBLIC_KEY missing'})
 
     payload_bytes = json.dumps(att.payload, sort_keys=True).encode()
     try:
         pub.verify(base64.b64decode(att.signature_b64), payload_bytes)
     except Exception:
-        return HttpResponse("Invalid attestation signature", status=403)
+        return render(request, 'access_proxy/error.html', {'error': 'Invalid attestation signature'})
 
     # ensure request APPROVED
     if dar.status != 'APPROVED':
-        return HttpResponse("Request not approved", status=403)
+        return render(request, 'access_proxy/error.html', {'error': 'Request not approved'})
 
     # get stored object
     stored = dar.contract.stored_object
     if not stored:
-        return HttpResponse("No stored object available", status=404)
+        return render(request, 'access_proxy/error.html', {'error': 'No stored object available'})
 
     enc = stored.encrypted_file.read()
     raw = decrypt_bytes(enc)

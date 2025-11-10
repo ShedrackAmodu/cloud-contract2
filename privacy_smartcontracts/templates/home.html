@@ -2,5 +2,26 @@
 
 {% block content %}
 <h1>Welcome to Privacy-Preserving Smart Contracts PoC</h1>
-<p>Create and manage privacy-aware smart contracts securely.</p>
+<p>This platform demonstrates privacy-preserving smart contracts with encrypted data storage, access control, and audit trails.</p>
+
+{% if not user.is_authenticated %}
+<h2>How it works:</h2>
+<ol>
+  <li><strong>Register/Login</strong> as a user (include your company for visibility permissions).</li>
+  <li><strong>Data Owners</strong> create contracts with policies and upload encrypted files.</li>
+  <li><strong>Requesters</strong> submit access requests for contracts.</li>
+  <li><strong>Owners</strong> approve or deny requests.</li>
+  <li><strong>Oracle</strong> automatically attests approved requests.</li>
+  <li><strong>Requesters</strong> retrieve verified data after attestation.</li>
+  <li><strong>Audit</strong> logs all actions for compliance.</li>
+</ol>
+<p>Oracle attestation is automated in this PoC.</p>
+<p>Start by <a href="{% url 'register' %}">registering</a> or <a href="{% url 'login' %}">logging in</a>.</p>
+{% else %}
+<p>Welcome back! Use the navigation to manage contracts and requests.</p>
+<p>As a requester, <a href="{% url 'contracts:public' %}">browse available contracts</a> to request access.</p>
+{% if user.is_staff %}
+<p>As staff, you can <a href="{% url 'oracle:pending' %}">sign attestations</a> and <a href="{% url 'audit:audit_list' %}">view audit logs</a>.</p>
+{% endif %}
+{% endif %}
 {% endblock %}

@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Available Contracts</h1>
+<p>Browse active contracts to request access.</p>
+
+{% if contracts %}
+  <ul>
+  {% for c in contracts %}
+    <li>
+      <strong>{{ c.title }}</strong> by {{ c.owner.get_username }}
+      <p>{{ c.description|truncatechars:100 }}</p>
+      <a href="{% url 'contracts:detail' c.pk %}">View Details & Request Access</a>
+    </li>
+  {% endfor %}
+  </ul>
+
+  {% if is_paginated %}
+    <div class="pagination">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+      {% endif %}
+      <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}">next</a>
+      {% endif %}
+    </div>
+  {% endif %}
+{% else %}
+  <p>No active contracts available.</p>
+{% endif %}
+{% endblock %}

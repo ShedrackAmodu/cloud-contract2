@@ -1,35 +1,67 @@
 {% extends 'base.html' %}
+{% load basename_filters %}
 {% block content %}
 <h1>{% if object %}Edit Contract{% else %}Create Contract{% endif %}</h1>
 
 <form method="post" enctype="multipart/form-data">
   {% csrf_token %}
   {{ form.non_field_errors }}
-  <p>
-    {{ form.title.label_tag }}<br>
-    {{ form.title }}
-  </p>
-  <p>
-    {{ form.description.label_tag }}<br>
-    {{ form.description }}
-  </p>
-  <p>
-    {{ form.attachment.label_tag }}<br>
-    {{ form.attachment }}
-    {% if object and object.attachment %}
-      <br><small>Current attached file: <a href="{{ object.attachment.url }}">{{ object.attachment.name|basename }}</a></small>
-    {% endif %}
-  </p>
-  <p>
-    {{ form.policy_json.label_tag }}<br>
-    {{ form.policy_json }}
-    <br><small>Example: {"purpose":"research","retention_days":30}</small>
-  </p>
-  <p>
-    {{ form.status.label_tag }}<br>
-    {{ form.status }}
-  </p>
 
-  <button type="submit">Save</button>
+  <div class="form-group">
+    {{ form.title.label_tag }}
+    {{ form.title }}
+  </div>
+
+  <div class="form-group">
+    {{ form.description.label_tag }}
+    {{ form.description }}
+  </div>
+
+  <div class="form-group">
+    {{ form.attachment_file.label_tag }}
+    {{ form.attachment_file }}
+    {% if object and object.stored_object %}
+      <small class="mt-1">Current attached file: {{ object.stored_object.name }}</small>
+    {% endif %}
+  </div>
+
+  <div class="form-group">
+    {{ form.visibility.label_tag }}
+    {{ form.visibility }}
+  </div>
+
+  <div class="form-group">
+    {{ form.allowed_companies.label_tag }}
+    {{ form.allowed_companies }}
+  </div>
+
+  <h3>Data Usage Policy</h3>
+
+  <div class="form-group">
+    {{ form.purpose.label_tag }}
+    {{ form.purpose }}
+  </div>
+
+  <div class="form-group">
+    {{ form.retention_days.label_tag }}
+    {{ form.retention_days }}
+  </div>
+
+  <div class="form-group">
+    {{ form.allowed_users.label_tag }}
+    {{ form.allowed_users }}
+  </div>
+
+  <div class="form-group">
+    {{ form.conditions.label_tag }}
+    {{ form.conditions }}
+  </div>
+
+  <div class="form-group">
+    {{ form.status.label_tag }}
+    {{ form.status }}
+  </div>
+
+  <button type="submit">Save Contract</button>
 </form>
 {% endblock %}

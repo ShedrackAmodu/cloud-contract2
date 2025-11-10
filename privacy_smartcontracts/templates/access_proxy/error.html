@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Access Error</h2>
+<p>{{ error }}</p>
+{% if error == 'Attestation not found' %}
+<p>Your request is approved but waiting for oracle attestation. Please check back later.</p>
+{% endif %}
+<p><a href="{% url 'requests_app:my_requests' %}">Back to My Requests</a></p>
+{% endblock %}

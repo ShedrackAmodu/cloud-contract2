@@ -4,9 +4,12 @@
 <ul>
   {% for r in requests %}
     <li>{{ r.contract.title }} — {{ r.requester.get_username }} — {{ r.status }}
+      {% if r.reason %} — Reason: {{ r.reason }}{% endif %}
       {% if r.status == 'PENDING' %}
         — <a href="{% url 'requests_app:process_request' r.id 'approve' %}">Approve</a>
         — <a href="{% url 'requests_app:process_request' r.id 'deny' %}">Deny</a>
+      {% elif r.status == 'APPROVED' %}
+        — <a href="{% url 'requests_app:process_request' r.id 'revoke' %}">Revoke</a>
       {% endif %}
     </li>
   {% endfor %}

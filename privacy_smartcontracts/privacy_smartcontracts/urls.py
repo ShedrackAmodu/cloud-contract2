@@ -23,12 +23,13 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("users/", include("users.urls")),
+    path("accounts/", include("users.urls")),
     path("contracts/", include(("contracts.urls", "contracts"), namespace="contracts")),
     path("requests/", include(("requests_app.urls", "requests_app"), namespace="requests_app")),
     path("oracle/", include(("oracle.urls", "oracle"), namespace="oracle")),
     path("access/", include(("access_proxy.urls", "access_proxy"), namespace="access_proxy")),
     path("audit/", include(("audit.urls", "audit"), namespace="audit")),
+    path("secure/", include(("secure_computation.urls", "secure_computation"), namespace="secure_computation")),
     path("", TemplateView.as_view(template_name="home.html"), name="home"),
 ]
 

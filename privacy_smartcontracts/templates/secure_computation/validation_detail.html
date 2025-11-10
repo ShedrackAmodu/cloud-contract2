@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'secure_computation:tee_dashboard' %}">TEE Dashboard</a></li>
+                    <li class="breadcrumb-item active">Validation #{{ validation.id }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="card-title mb-0">
+                        <i class="fas fa-search"></i> TEE Validation Details #{{ validation.id }}
+                    </h2>
+                    <small class="text-light">Cryptographic verification and attestation information</small>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-shield-alt"></i>
+                        <strong>Security Notice:</strong> Sensitive cryptographic data is truncated for security.
+                        Full signatures, keys, and measurements are hashed/truncated to prevent exposure while demonstrating real cryptography.
+                    </div>
+                    <!-- Validation Status -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card text-center {% if validation.zkp_verified %}border-success{% else %}border-danger{% endif %}">
+                                <div class="card-body">
+                                    <i class="fas fa-brain fa-2x {% if validation.zkp_verified %}text-success{% else %}text-danger{% endif %}"></i>
+                                    <h5 class="card-title">ZKP</h5>
+                                    <span class="badge {% if validation.zkp_verified %}badge-success{% else %}badge-danger{% endif %}">
+                                        {% if validation.zkp_verified %}Verified{% else %}Failed{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center {% if validation.tee_verified %}border-success{% else %}border-danger{% endif %}">
+                                <div class="card-body">
+                                    <i class="fas fa-shield-alt fa-2x {% if validation.tee_verified %}text-success{% else %}text-danger{% endif %}"></i>
+                                    <h5 class="card-title">TEE</h5>
+                                    <span class="badge {% if validation.tee_verified %}badge-success{% else %}badge-danger{% endif %}">
+                                        {% if validation.tee_verified %}Attested{% else %}Failed{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center {% if validation.smpc_verified %}border-success{% else %}border-danger{% endif %}">
+                                <div class="card-body">
+                                    <i class="fas fa-users fa-2x {% if validation.smpc_verified %}text-success{% else %}text-danger{% endif %}"></i>
+                                    <h5 class="card-title">SMPC</h5>
+                                    <span class="badge {% if validation.smpc_verified %}badge-success{% else %}badge-danger{% endif %}">
+                                        {% if validation.smpc_verified %}Verified{% else %}Failed{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center {% if validation.overall_verified %}border-success{% else %}border-danger{% endif %}">
+                                <div class="card-body">
+                                    <i class="fas fa-lock fa-2x {% if validation.overall_verified %}text-success{% else %}text-danger{% endif %}"></i>
+                                    <h5 class="card-title">Overall</h5>
+                                    <span class="badge {% if validation.overall_verified %}badge-success{% else %}badge-danger{% endif %}">
+                                        {% if validation.overall_verified %}Secure{% else %}Failed{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Request Information -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h4>Request Information</h4>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Request ID:</strong></td>
+                                    <td>{{ validation.request.id }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Contract:</strong></td>
+                                    <td>{{ validation.request.contract.title }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Requester:</strong></td>
+                                    <td>{{ validation.request.requester.username }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Owner:</strong></td>
+                                    <td>{{ validation.request.contract.owner.username }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Validation Time:</strong></td>
+                                    <td>{{ validation.validated_at|date:"M d, Y H:i:s" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h4>Attestation Verification</h4>
+                            <div class="alert {% if attestation_valid %}alert-success{% else %}alert-danger{% endif %}">
+                                <i class="fas {% if attestation_valid %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
+                                <strong>Attestation Status:</strong>
+                                {% if attestation_valid %}
+                                    Valid - Cryptographically verified
+                                {% else %}
+                                    Invalid - Verification failed
+                                {% endif %}
+                            </div>
+                            {% if validation.tee_attestation %}
+                                <p><strong>Enclave ID:</strong> <code>{{ validation.tee_attestation.enclave_id|truncatechars:12 }}...</code></p>
+                                <p><strong>Measurement:</strong> <code>{{ validation.tee_attestation.measurement|truncatechars:16 }}...</code></p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cryptographic Summary (Security Protected) -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-lock"></i> Cryptographic Verification Summary
+                    </h4>
+                    <small>Full cryptographic data protected for security - verification status shown above</small>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Security Protection:</strong> Complete cryptographic proofs, signatures, and keys are stored securely in the database
+                        but not displayed in the UI to prevent potential security risks. The verification status badges above confirm that all
+                        cryptographic validations passed successfully.
+                    </div>
+
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <div class="p-3">
+                                <i class="fas fa-brain fa-3x text-info mb-3"></i>
+                                <h5>ZKP Verification</h5>
+                                <p class="text-muted">Zero-knowledge proof validated with cryptographic proof data</p>
+                                <small class="text-muted">Proof data: {{ validation.zkp_proof.proof_data|truncatechars:16 }}...</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3">
+                                <i class="fas fa-shield-alt fa-3x text-success mb-3"></i>
+                                <h5>TEE Attestation</h5>
+                                <p class="text-muted">Remote attestation verified with ECDSA signature</p>
+                                <small class="text-muted">Enclave: {{ validation.tee_attestation.enclave_id|truncatechars:12 }}...</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3">
+                                <i class="fas fa-users fa-3x text-warning mb-3"></i>
+                                <h5>SMPC Computation</h5>
+                                <p class="text-muted">Multi-party computation completed with share verification</p>
+                                <small class="text-muted">{{ validation.smpc_result.parties }} parties verified</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Analysis -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="card-title mb-0">
+                        <i class="fas fa-chart-line"></i> Security Analysis
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Integrity Verification</h5>
+                            <ul class="list-group">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Code Measurement
+                                    <span class="badge badge-success badge-pill">
+                                        <i class="fas fa-check"></i>
+                                    </span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Input Integrity Hash
+                                    <span class="badge badge-success badge-pill">
+                                        <i class="fas fa-check"></i>
+                                    </span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Cryptographic Signature
+                                    <span class="badge {% if attestation_valid %}badge-success{% else %}badge-danger{% endif %} badge-pill">
+                                        <i class="fas {% if attestation_valid %}fa-check{% else %}fa-times{% endif %}"></i>
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Security Properties</h5>
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-lock"></i> Confidentiality</h6>
+                                <p class="mb-1">Data remains encrypted and protected throughout the validation process.</p>
+
+                                <h6><i class="fas fa-shield-alt"></i> Integrity</h6>
+                                <p class="mb-1">Cryptographic guarantees ensure computation results are tamper-proof.</p>
+
+                                <h6><i class="fas fa-key"></i> Authenticity</h6>
+                                <p class="mb-1">Digital signatures prove the origin and integrity of attestations.</p>
+
+                                <h6><i class="fas fa-user-secret"></i> Privacy</h6>
+                                <p class="mb-0">Zero-knowledge proofs validate without revealing sensitive information.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

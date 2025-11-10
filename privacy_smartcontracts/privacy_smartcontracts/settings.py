@@ -44,7 +44,8 @@ INSTALLED_APPS = [
     'oracle',
     'access_proxy',
     'audit',
-   
+    'secure_computation',
+
 ]
 
 MIDDLEWARE = [

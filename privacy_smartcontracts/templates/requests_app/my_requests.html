@@ -3,9 +3,18 @@
 <h2>Your Requests</h2>
 <ul>
   {% for r in requests %}
-    <li>{{ r.contract.title }} — {{ r.status }} — created {{ r.created_at }} 
+    <li>{{ r.contract.title }} — {{ r.status }} — created {{ r.created_at }}
+      {% if r.reason %} — Reason: {{ r.reason }}{% endif %}
       {% if r.status == 'APPROVED' %}
-        — <a href="{% url 'access_proxy:retrieve' r.id %}">Retrieve file</a>
+        {% if r.attestations.exists %}
+          {% if r.contract.stored_object %}
+            — <a href="{% url 'access_proxy:retrieve' r.id %}">Retrieve file</a>
+          {% else %}
+            — Contract has no data file
+          {% endif %}
+        {% else %}
+          — Waiting for oracle attestation
+        {% endif %}
       {% endif %}
     </li>
   {% empty %}

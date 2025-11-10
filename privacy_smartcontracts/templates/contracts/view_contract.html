@@ -9,19 +9,45 @@
   <div>{{ contract.description|linebreaks }}</div>
 {% endif %}
 
-{% if contract.attachment %}
+{% if contract.stored_object %}
   <h3>Attachment</h3>
-  <p><a href="{{ contract.attachment.url }}">Download attachment</a></p>
+  <p>File: {{ contract.stored_object.name }}</p>
+  {% if contract.owner == user or user.is_superuser %}
+    <p><em>This file is encrypted and stored securely.</em></p>
+  {% endif %}
+{% else %}
+  <h3>Attachment</h3>
+  <p><em>No data file has been uploaded to this contract.</em></p>
+  {% if contract.owner == user or user.is_superuser %}
+    <p><a href="{% url 'contracts:edit' contract.pk %}">Edit contract to upload a file</a></p>
+  {% endif %}
 {% endif %}
 
 {% if contract.policy %}
-  <h3>Policy</h3>
-  <pre>{{ contract.policy|json_script:"contract_policy" }}</pre>
+  <h3>Data Usage Policy</h3>
+  <ul>
+    {% if contract.policy.purpose %}
+      <li><strong>Purpose:</strong> {{ contract.policy.purpose }}</li>
+    {% endif %}
+    {% if contract.policy.retention_days %}
+      <li><strong>Retention Days:</strong> {{ contract.policy.retention_days }}</li>
+    {% endif %}
+    {% if contract.policy.allowed_users %}
+      <li><strong>Allowed Users:</strong> {{ contract.policy.allowed_users }}</li>
+    {% endif %}
+    {% if contract.policy.conditions %}
+      <li><strong>Conditions:</strong> {{ contract.policy.conditions }}</li>
+    {% endif %}
+  </ul>
 {% endif %}
 
 <p><a href="{% url 'contracts:dashboard' %}">Back to dashboard</a>
 {% if contract.owner == user or user.is_superuser %}
   — <a href="{% url 'contracts:edit' contract.pk %}">Edit</a>
+  — <a href="{% url 'requests_app:owner_requests' %}">Manage Requests</a>
+{% endif %}
+{% if user.is_staff %}
+  — <a href="{% url 'audit:audit_list' %}">View Audit History</a>
 {% endif %}
 {% if user.is_authenticated and user != contract.owner %}
   <p><a href="{% url 'requests_app:create_request' contract.id %}">Request access to this contract</a></p>

@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import ListView, CreateView, DetailView, UpdateView
+from django.db import models
 from .models import Contract
 from .forms import ContractForm
 from django.contrib import messages
@@ -38,9 +39,9 @@ class ContractCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.owner = self.request.user
-        resp = super().form_valid(form)
+        self.object = form.save(commit=True, owner=self.request.user, files=self.request.FILES)
         messages.success(self.request, "Contract created.")
-        return resp
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
         return reverse('contracts:detail', kwargs={'pk': self.object.pk})
@@ -52,10 +53,28 @@ class ContractDetailView(LoginRequiredMixin, DetailView):
 
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
-        # restrict access: owner or admin or other business rule
-        if self.object.owner != request.user and not request.user.is_superuser:
+        user = request.user
+        # allow if owner or superuser
+        if self.object.owner == user or user.is_superuser:
+            pass
+        # or if public
+        elif self.object.visibility == 'PUBLIC':
+            pass
+        # or if private and user's company is allowed
+        elif self.object.visibility == 'PRIVATE':
+            try:
+                profile = user.userprofile
+                if self.object.allowed_companies.filter(pk=profile.pk).exists():
+                    pass
+                else:
+                    messages.error(request, "You do not have permission to view this contract.")
+                    return redirect('contracts:public')
+            except:
+                messages.error(request, "You do not have permission to view this contract.")
+                return redirect('contracts:public')
+        else:
             messages.error(request, "You do not have permission to view this contract.")
-            return redirect('contracts:dashboard')
+            return redirect('contracts:public')
         context = self.get_context_data(object=self.object)
         return self.render_to_response(context)
 
@@ -80,5 +99,30 @@ class ContractUpdateView(LoginRequiredMixin, UpdateView):
         # pass request.FILES into form via attribute so form.save can access
         form.files = self.request.FILES
         self.object = form.save(commit=True, owner=self.request.user)
-        messages.success(self.request, "Contract created.")
+        messages.success(self.request, "Contract updated.")
         return HttpResponseRedirect(self.get_success_url())
+
+class PublicContractsView(ListView):
+    model = Contract
+    template_name = 'contracts/public_contracts.html'
+    context_object_name = 'contracts'
+    paginate_by = 12
+
+    def get_queryset(self):
+        user = self.request.user
+        # show active contracts for requesters to browse
+        qs = Contract.objects.filter(status='ACTIVE')
+        if user.is_authenticated:
+            try:
+                profile = user.userprofile
+                # include public and private where user's company is allowed
+                qs = qs.filter(
+                    models.Q(visibility='PUBLIC') |
+                    models.Q(visibility='PRIVATE', allowed_companies=profile)
+                )
+            except:
+                # no profile, show only public
+                qs = qs.filter(visibility='PUBLIC')
+        else:
+            qs = qs.filter(visibility='PUBLIC')
+        return qs
