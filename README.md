@@ -13,7 +13,7 @@ This is a **3-week PoC** demonstrating privacy-preserving smart contracts with:
 - Authentication (owner/requester/admin), audit log
 - Docker-ready & CI-friendly
 
-> **Note:** For PoC, ZKP/TEE/SMPC are mocked. Full integration requires more work.
+> **Note:** For PoC, ZKP and SMPC are simulated with simplified proofs. TEE uses real cryptographic primitives (ECDSA signatures, SHA256 hashing). Full production integration requires hardware TEE and complete ZKP/SMPC libraries.
 
 ---
 
@@ -306,6 +306,66 @@ The Privacy-Preserving Smart Contracts in Cloud Computing model successfully imp
 3. **Integration Development**: Develop APIs for third-party service integration
 4. **Monitoring Enhancement**: Implement real-time security monitoring and alerting
 5. **User Training**: Develop comprehensive user guides and training materials
+
+### 6.4 Production Implementation Timeline
+
+**Estimated Timeline for Real-World (Non-Simulated) Version:**
+
+#### **Phase 1: Core Cryptographic Upgrades (3-4 months)**
+- **ZKP Implementation**: 6-8 weeks
+  - Integrate production ZKP library (libsnark/bellman/arkworks)
+  - Design privacy-preserving circuits for access policies
+  - Implement proof generation/verification for data requests
+- **TEE Hardware Integration**: 4-6 weeks
+  - Intel SGX/AMD SEV enclave development
+  - Remote attestation implementation
+  - Secure key management in hardware
+- **SMPC Protocol Development**: 6-8 weeks
+  - Multi-party computation protocols
+  - Secret sharing schemes implementation
+  - Fault tolerance and recovery mechanisms
+
+#### **Phase 2: Performance & Security (2-3 months)**
+- **Performance Optimization**: 4-6 weeks
+  - Parallel processing optimization
+  - Memory management improvements
+  - Database query optimization
+- **Security Hardening**: 4-6 weeks
+  - Cryptographic security audit
+  - Penetration testing
+  - Vulnerability assessments
+- **Scalability Testing**: 4-6 weeks
+  - Load testing with 1000+ users
+  - Cloud deployment optimization
+  - Performance benchmarking
+
+#### **Phase 3: Production Readiness (1-2 months)**
+- **Compliance & Certification**: 4-6 weeks
+  - GDPR/privacy regulation compliance
+  - Security certifications (SOC 2, ISO 27001)
+  - Third-party security audits
+- **Integration & Deployment**: 2-4 weeks
+  - Cloud provider integrations (AWS, Azure, GCP)
+  - CI/CD pipeline for production
+  - Monitoring and alerting systems
+
+#### **Total Estimated Timeline: 6-9 months**
+- **Small Team (2-3 developers)**: 8-9 months
+- **Medium Team (5-7 developers)**: 6-7 months
+- **Large Team (8+ developers)**: 5-6 months
+
+#### **Key Dependencies & Risks:**
+- **Cryptographic Expertise**: Requires specialized knowledge in ZKP, MPC, and TEE
+- **Hardware Availability**: Access to TEE-enabled infrastructure
+- **Regulatory Compliance**: Privacy law requirements (GDPR, CCPA)
+- **Performance Trade-offs**: Balancing security with usability
+- **Cost Factors**: Hardware TEE infrastructure and security audits
+
+#### **Milestones:**
+- **Month 2**: Core cryptographic primitives functional
+- **Month 4**: End-to-end privacy-preserving workflows operational
+- **Month 6**: Performance optimized and security audited
+- **Month 8**: Production deployment ready
 
 ### 6.3 Contribution to Knowledge
 
