@@ -3,21 +3,25 @@ from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.generic import ListView, CreateView, DetailView, UpdateView
 from django.db import models
-from .models import Contract
-from .forms import ContractForm
+from .models import Contract, ContractDocument
+from .forms import ContractForm, ContractDocumentForm
 from django.contrib import messages
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 
-class OwnerRequiredMixin(UserPassesTestMixin):
+class OwnerOrSecondPartyRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         obj = getattr(self, 'object', None)
         if obj is None:
-            # For create/list views, check user is authenticated
             return self.request.user.is_authenticated
-        return obj.owner == self.request.user or self.request.user.is_superuser
+        return (obj.owner == self.request.user or
+                obj.second_party == self.request.user or
+                self.request.user.is_superuser)
 
     def handle_no_permission(self):
-        messages.error(self.request, "You don't have permission to view that.")
+        messages.error(self.request, "You don't have permission to perform this action.")
         return redirect('contracts:dashboard')
 
 class DashboardView(LoginRequiredMixin, ListView):
@@ -30,17 +34,24 @@ class DashboardView(LoginRequiredMixin, ListView):
         user = self.request.user
         if user.is_superuser:
             return Contract.objects.all()
-        return Contract.objects.filter(owner=user)
+        # Show contracts owned by the user or where the user is the second_party
+        return Contract.objects.filter(models.Q(owner=user) | models.Q(second_party=user))
 
 class ContractCreateView(LoginRequiredMixin, CreateView):
     model = Contract
     form_class = ContractForm
     template_name = 'contracts/create_contract.html'
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['initial'] = {'owner_accepted': True} # Owner implicitly accepts on creation
+        return kwargs
+
     def form_valid(self, form):
         form.instance.owner = self.request.user
-        self.object = form.save(commit=True, owner=self.request.user, files=self.request.FILES)
-        messages.success(self.request, "Contract created.")
+        form.instance.owner_accepted = True # Owner accepts when creating the contract
+        self.object = form.save(commit=True, owner=self.request.user) # No files here, handled by separate view
+        messages.success(self.request, "Contract created. Pending second party confirmation.")
         return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
@@ -51,11 +62,19 @@ class ContractDetailView(LoginRequiredMixin, DetailView):
     template_name = 'contracts/view_contract.html'
     context_object_name = 'contract'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        contract = self.get_object()
+        context['documents'] = contract.documents.all()
+        context['document_form'] = ContractDocumentForm()
+        return context
+
     def get(self, request, *args, **kwargs):
         self.object = self.get_object()
         user = request.user
-        # allow if owner or superuser
-        if self.object.owner == user or user.is_superuser:
+        
+        # Allow if owner, second_party or superuser
+        if self.object.owner == user or self.object.second_party == user or user.is_superuser:
             pass
         # or if public
         elif self.object.visibility == 'PUBLIC':
@@ -75,29 +94,19 @@ class ContractDetailView(LoginRequiredMixin, DetailView):
         else:
             messages.error(request, "You do not have permission to view this contract.")
             return redirect('contracts:public')
+        
         context = self.get_context_data(object=self.object)
         return self.render_to_response(context)
 
-class ContractUpdateView(LoginRequiredMixin, UpdateView):
+class ContractUpdateView(LoginRequiredMixin, OwnerOrSecondPartyRequiredMixin, UpdateView):
     model = Contract
     form_class = ContractForm
     template_name = 'contracts/create_contract.html'
-
-    def dispatch(self, request, *args, **kwargs):
-        # ensure only owner or superuser can update
-        self.object = self.get_object()
-        if self.object.owner != request.user and not request.user.is_superuser:
-            messages.error(request, "You do not have permission to edit this contract.")
-            return redirect('contracts:dashboard')
-        return super().dispatch(request, *args, **kwargs)
-
 
     def get_success_url(self):
         return reverse('contracts:detail', kwargs={'pk': self.object.pk})
 
     def form_valid(self, form):
-        # pass request.FILES into form via attribute so form.save can access
-        form.files = self.request.FILES
         self.object = form.save(commit=True, owner=self.request.user)
         messages.success(self.request, "Contract updated.")
         return HttpResponseRedirect(self.get_success_url())
@@ -110,19 +119,75 @@ class PublicContractsView(ListView):
 
     def get_queryset(self):
         user = self.request.user
-        # show active contracts for requesters to browse
-        qs = Contract.objects.filter(status='ACTIVE')
+        qs = Contract.objects.filter(status='ACTIVE') # Only show active contracts
         if user.is_authenticated:
             try:
                 profile = user.userprofile
-                # include public and private where user's company is allowed
                 qs = qs.filter(
                     models.Q(visibility='PUBLIC') |
                     models.Q(visibility='PRIVATE', allowed_companies=profile)
                 )
-            except:
-                # no profile, show only public
+            except UserProfile.DoesNotExist:
                 qs = qs.filter(visibility='PUBLIC')
         else:
             qs = qs.filter(visibility='PUBLIC')
         return qs
+
+@login_required
+@require_POST
+def accept_contract(request, pk):
+    contract = get_object_or_404(Contract, pk=pk)
+    user = request.user
+
+    if user == contract.owner:
+        contract.owner_accepted = True
+        messages.success(request, "You have accepted the contract as the owner.")
+    elif user == contract.second_party:
+        contract.second_party_accepted = True
+        messages.success(request, "You have accepted the contract as the second party.")
+    else:
+        messages.error(request, "You are not authorized to accept this contract.")
+        return redirect('contracts:detail', pk=pk)
+
+    contract.save() # This will update the status if both are accepted
+    return redirect('contracts:detail', pk=pk)
+
+@login_required
+@require_POST
+def upload_contract_document(request, pk):
+    contract = get_object_or_404(Contract, pk=pk)
+    user = request.user
+
+    # Only allow owner or second_party to upload documents
+    if not (user == contract.owner or user == contract.second_party):
+        messages.error(request, "You are not authorized to upload documents to this contract.")
+        return redirect('contracts:detail', pk=pk)
+
+    # Prevent uploading if contract is already active and both parties have accepted
+    if contract.owner_accepted and contract.second_party_accepted and contract.status == 'ACTIVE':
+        # Even if active, they can still add, just no deletion
+        pass # Allow adding, deletion restriction is in ContractDocument model's delete method
+
+    form = ContractDocumentForm(request.POST, request.FILES)
+    if form.is_valid():
+        try:
+            form.save(contract=contract, uploaded_by=user)
+            messages.success(request, "Document uploaded successfully.")
+        except ValidationError as e:
+            messages.error(request, e.message)
+        except Exception as e:
+            messages.error(request, f"Error uploading document: {e}")
+    else:
+        for field, errors in form.errors.items():
+            for error in errors:
+                messages.error(request, f"{field}: {error}")
+    
+    return redirect('contracts:detail', pk=pk)
+
+def encryption_visualization_view(request, pk):
+    contract = get_object_or_404(Contract, pk=pk)
+    # Ensure only authorized users can view the visualization
+    if not (request.user == contract.owner or request.user == contract.second_party or request.user.is_superuser):
+        messages.error(request, "You are not authorized to view this visualization.")
+        return redirect('contracts:detail', pk=pk)
+    return render(request, 'contracts/encryption_visualization.html', {'contract': contract})

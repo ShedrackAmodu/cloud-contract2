@@ -1,7 +1,11 @@
 from django import forms
-from .models import Contract
+from .models import Contract, ContractDocument
 import json
 from storage.utils import save_encrypted_file
+from users.models import UserProfile
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class ContractForm(forms.ModelForm):
     # Policy fields
@@ -10,18 +14,15 @@ class ContractForm(forms.ModelForm):
     allowed_users = forms.CharField(widget=forms.Textarea(attrs={"rows":3}), required=False, help_text="Comma-separated list of allowed user emails")
     conditions = forms.CharField(widget=forms.Textarea(attrs={"rows":3}), required=False, help_text="Additional conditions")
 
-    allowed_companies = forms.ModelMultipleChoiceField(queryset=None, required=False, widget=forms.SelectMultiple, help_text="Select companies allowed to view this private contract")
-
-    attachment_file = forms.FileField(required=False, label="Data File", help_text="Upload the data file to be shared (will be encrypted automatically). Required for new contracts.")
+    allowed_companies = forms.ModelMultipleChoiceField(queryset=UserProfile.objects.all(), required=False, widget=forms.SelectMultiple, help_text="Select companies allowed to view this private contract")
+    second_party = forms.ModelChoiceField(queryset=User.objects.all(), required=False, help_text="Select the second party for this contract")
 
     class Meta:
         model = Contract
-        fields = ("title","description","visibility","status")
+        fields = ("title", "description", "visibility", "second_party") # Removed status as it's updated internally
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        from users.models import UserProfile
-        self.fields['allowed_companies'].queryset = UserProfile.objects.all()
         # populate policy fields when editing
         instance = kwargs.get("instance")
         if instance and instance.policy:
@@ -32,21 +33,12 @@ class ContractForm(forms.ModelForm):
             self.initial["conditions"] = policy.get("conditions", "")
         if instance:
             self.initial['allowed_companies'] = instance.allowed_companies.all()
+            if instance.second_party:
+                self.initial['second_party'] = instance.second_party
 
-    def clean(self):
-        cleaned_data = super().clean()
-        attachment_file = cleaned_data.get('attachment_file')
-        instance = getattr(self, 'instance', None)
-
-        # Require file for new contracts
-        if not instance or not instance.pk:
-            if not attachment_file:
-                raise forms.ValidationError("A data file must be uploaded when creating a new contract.")
-
-        return cleaned_data
-
-    def save(self, commit=True, owner=None, files=None):
+    def save(self, commit=True, owner=None):
         instance = super().save(commit=False)
+        
         # build policy dict
         policy = {}
         if self.cleaned_data.get("purpose"):
@@ -59,18 +51,30 @@ class ContractForm(forms.ModelForm):
             policy["conditions"] = self.cleaned_data["conditions"]
         instance.policy = policy
 
-        # handle file: files should be request.FILES or None
-        uploaded = None
-        if files:
-            uploaded = files.get("attachment_file")
-        if uploaded and owner:
-            stored = save_encrypted_file(owner, uploaded, name=uploaded.name, meta={})
-            instance.stored_object = stored
-
         if owner and not instance.pk:
             instance.owner = owner
 
         if commit:
             instance.save()
-            self.save_m2m()
+            self.save_m2m() # Save ManyToMany relationships like allowed_companies
         return instance
+
+class ContractDocumentForm(forms.ModelForm):
+    attachment_file = forms.FileField(required=True, label="Upload Document", help_text="Upload a new document for this contract (will be encrypted automatically).")
+
+    class Meta:
+        model = ContractDocument
+        fields = ('attachment_file',) # Only file upload field
+
+    def save(self, contract, uploaded_by, commit=True):
+        uploaded_file = self.cleaned_data['attachment_file']
+        stored = save_encrypted_file(uploaded_by, uploaded_file, name=uploaded_file.name, meta={})
+        
+        contract_document = super().save(commit=False)
+        contract_document.contract = contract
+        contract_document.stored_object = stored
+        contract_document.uploaded_by = uploaded_by
+
+        if commit:
+            contract_document.save()
+        return contract_document

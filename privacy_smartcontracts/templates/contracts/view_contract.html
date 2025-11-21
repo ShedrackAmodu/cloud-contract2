@@ -1,27 +1,57 @@
 {% extends 'base.html' %}
+{% load basename_filters %}
 {% block content %}
 <h1>{{ contract.title }}</h1>
-<p><strong>Owner:</strong> {{ contract.owner.get_username }}</p>
+<p><strong>Owner:</strong> {{ contract.owner.get_username }} {% if contract.owner_accepted %}<span class="badge badge-success">Accepted</span>{% else %}<span class="badge badge-warning">Pending</span>{% endif %}</p>
+
+{% if contract.second_party %}
+  <p><strong>Second Party:</strong> {{ contract.second_party.get_username }} {% if contract.second_party_accepted %}<span class="badge badge-success">Accepted</span>{% else %}<span class="badge badge-warning">Pending</span>{% endif %}</p>
+{% else %}
+    <p><strong>Second Party:</strong> Not Assigned</p>
+{% endif %}
+
 <p><strong>Status:</strong> {{ contract.status }}</p>
 <p><strong>Created:</strong> {{ contract.created_at }}</p>
+
+{% if contract.owner == user and not contract.owner_accepted %}
+  <form action="{% url 'contracts:accept_contract' contract.pk %}" method="post" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-success btn-sm">Accept as Owner</button>
+  </form>
+{% elif contract.second_party == user and not contract.second_party_accepted %}
+  <form action="{% url 'contracts:accept_contract' contract.pk %}" method="post" style="display:inline;">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-success btn-sm">Accept as Second Party</button>
+  </form>
+{% endif %}
+
 {% if contract.description %}
   <h3>Description</h3>
   <div>{{ contract.description|linebreaks }}</div>
 {% endif %}
 
-{% if contract.stored_object %}
-  <h3>Attachment</h3>
-  <p>File: {{ contract.stored_object.name }}</p>
-  {% if contract.owner == user or user.is_superuser %}
-    <p><em>This file is encrypted and stored securely.</em></p>
-  {% endif %}
+<h3>Documents</h3>
+{% if documents %}
+    <ul>
+        {% for doc in documents %}
+            <li>
+                <a href="{{ doc.stored_object.file.url }}" target="_blank">{{ doc.stored_object.file_name }}</a> (Uploaded by: {{ doc.uploaded_by.get_username }} on {{ doc.uploaded_at|date:"Y-m-d H:i" }})
+            </li>
+        {% endfor %}
+    </ul>
 {% else %}
-  <h3>Attachment</h3>
-  <p><em>No data file has been uploaded to this contract.</em></p>
-  {% if contract.owner == user or user.is_superuser %}
-    <p><a href="{% url 'contracts:edit' contract.pk %}">Edit contract to upload a file</a></p>
-  {% endif %}
+    <p><em>No documents have been uploaded to this contract yet.</em></p>
 {% endif %}
+
+{% if user == contract.owner or user == contract.second_party %}
+    <h4>Upload New Document</h4>
+    <form action="{% url 'contracts:upload_document' contract.pk %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ document_form.as_p }}
+        <button type="submit" class="btn btn-primary btn-sm">Upload Document</button>
+    </form>
+{% endif %}
+
 
 {% if contract.policy %}
   <h3>Data Usage Policy</h3>
@@ -49,8 +79,12 @@
 {% if user.is_staff %}
   — <a href="{% url 'audit:audit_list' %}">View Audit History</a>
 {% endif %}
-{% if user.is_authenticated and user != contract.owner %}
+{% if user.is_authenticated and user != contract.owner and user != contract.second_party %}
   <p><a href="{% url 'requests_app:create_request' contract.id %}">Request access to this contract</a></p>
+{% endif %}
+
+{% if contract.owner == user or contract.second_party == user or user.is_superuser %}
+    <p><a href="{% url 'contracts:encryption_visualization' contract.pk %}" class="btn btn-info btn-sm">View Encryption Visualization</a></p>
 {% endif %}
 
 </p>

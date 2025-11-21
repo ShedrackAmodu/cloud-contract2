@@ -17,13 +17,6 @@
     {{ form.description }}
   </div>
 
-  <div class="form-group">
-    {{ form.attachment_file.label_tag }}
-    {{ form.attachment_file }}
-    {% if object and object.stored_object %}
-      <small class="mt-1">Current attached file: {{ object.stored_object.name }}</small>
-    {% endif %}
-  </div>
 
   <div class="form-group">
     {{ form.visibility.label_tag }}
@@ -33,6 +26,11 @@
   <div class="form-group">
     {{ form.allowed_companies.label_tag }}
     {{ form.allowed_companies }}
+  </div>
+
+  <div class="form-group">
+    {{ form.second_party.label_tag }}
+    {{ form.second_party }}
   </div>
 
   <h3>Data Usage Policy</h3>
@@ -57,10 +55,6 @@
     {{ form.conditions }}
   </div>
 
-  <div class="form-group">
-    {{ form.status.label_tag }}
-    {{ form.status }}
-  </div>
 
   <button type="submit">Save Contract</button>
 </form>

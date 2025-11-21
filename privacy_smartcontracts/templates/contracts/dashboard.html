@@ -9,7 +9,17 @@
   {% for c in contracts %}
     <li>
       <a href="{% url 'contracts:detail' c.pk %}">{{ c.title }}</a>
-      — {{ c.status }} — created {{ c.created_at|date:"Y-m-d H:i" }}
+      {% if c.owner == user %}
+        (Owner)
+      {% elif c.second_party == user %}
+        (Second Party)
+      {% endif %}
+      — Status: {{ c.status }}
+      {% if c.owner_accepted %}<span class="badge badge-success">Owner Accepted</span>{% else %}<span class="badge badge-warning">Owner Pending</span>{% endif %}
+      {% if c.second_party %}
+        {% if c.second_party_accepted %}<span class="badge badge-success">Second Party Accepted</span>{% else %}<span class="badge badge-warning">Second Party Pending</span>{% endif %}
+      {% endif %}
+      — created {{ c.created_at|date:"Y-m-d H:i" }}
       {% if c.owner == user or user.is_superuser %}
         — <a href="{% url 'contracts:edit' c.pk %}">Edit</a>
       {% endif %}
