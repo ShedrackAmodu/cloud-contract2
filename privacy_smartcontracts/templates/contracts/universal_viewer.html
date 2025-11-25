@@ -1,0 +1,453 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .viewer-container {
+        width: 100%;
+        height: 90vh;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--background-light);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    .viewer-toolbar {
+        background: var(--header-gradient);
+        color: white;
+        padding: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 8px 8px 0 0;
+        flex-shrink: 0;
+    }
+
+    .viewer-title {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+
+    .file-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .file-type-badge {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .viewer-content {
+        flex: 1;
+        overflow: auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+        background: #f8f9fa;
+    }
+
+    .content-area {
+        max-width: 100%;
+        max-height: 100%;
+        text-align: center;
+    }
+
+    /* PDF specific */
+    .pdf-controls {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .pdf-controls button {
+        background: var(--primary-blue);
+        border: none;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .pdf-controls button:hover {
+        background: var(--deep-blue);
+    }
+
+    .pdf-controls button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .page-info {
+        color: var(--text-primary);
+        font-weight: 500;
+        margin: 0 1rem;
+    }
+
+    /* Image specific */
+    .image-viewer img {
+        max-width: 100%;
+        max-height: 80vh;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        border-radius: 4px;
+    }
+
+    /* Text specific */
+    .text-viewer {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        max-width: 800px;
+        text-align: left;
+        white-space: pre-wrap;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    /* Office Document specific (Google Docs Viewer) */
+    .office-viewer {
+        width: 100%;
+        height: 80vh;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .office-viewer iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+    }
+
+    /* Unsupported file type */
+    .unsupported-viewer {
+        text-align: center;
+        padding: 3rem;
+    }
+
+    .unsupported-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .back-button {
+        background: var(--background-body);
+        color: var(--text-primary);
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        margin-bottom: 1rem;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .back-button:hover {
+        background: var(--light-purple);
+    }
+
+    .loading {
+        color: var(--text-secondary);
+        font-size: 1.2rem;
+        text-align: center;
+        padding: 2rem;
+    }
+</style>
+
+<div class="container">
+    <a href="{% url 'contracts:detail' contract.pk %}" class="back-button">← Back to Contract</a>
+
+    <div class="viewer-container">
+        <div class="viewer-toolbar">
+            <h2 class="viewer-title">{{ document.stored_object.file_name }}</h2>
+            <div class="file-info">
+                <span class="file-type-badge" id="fileTypeBadge">Loading...</span>
+                <a href="{% url 'contracts:download_document' contract.pk document.pk %}"
+                   class="document-link"
+                   style="background: var(--accent-purple); margin-left: 1rem; font-size: 0.8rem;">
+                    📥 Download
+                </a>
+            </div>
+        </div>
+
+        <div class="viewer-content" id="viewerContent">
+            <div class="loading" id="loadingText">Loading document...</div>
+
+            <!-- PDF Viewer -->
+            <div id="pdfViewer" style="display: none;">
+                <div class="pdf-controls">
+                    <button id="prevPage" disabled>‹ Previous</button>
+                    <span class="page-info">Page <span id="pageNum">1</span> of <span id="pageCount">0</span></span>
+                    <button id="nextPage" disabled>Next ›</button>
+                    <button id="zoomOut">Zoom Out</button>
+                    <button id="zoomIn">Zoom In</button>
+                    <span class="page-info"><span id="zoomLevel">100%</span></span>
+                </div>
+                <canvas id="pdfCanvas"></canvas>
+            </div>
+
+            <!-- Office Document Viewer -->
+            <div id="officeViewer" class="office-viewer" style="display: none;">
+                <iframe id="officeFrame" src="" title="Document Viewer"></iframe>
+            </div>
+
+            <!-- Image Viewer -->
+            <div id="imageViewer" class="image-viewer" style="display: none;">
+                <img id="imageContent" alt="Document Image">
+            </div>
+
+            <!-- Text Viewer -->
+            <div id="textViewer" class="text-viewer" style="display: none;">
+                <pre id="textContent"></pre>
+            </div>
+
+            <!-- Unsupported File Viewer -->
+            <div id="unsupportedViewer" class="unsupported-viewer" style="display: none;">
+                <div class="unsupported-icon">📄</div>
+                <h3>Preview Not Available</h3>
+                <p>This file type cannot be previewed in the browser.</p>
+                <p><small>File type: <span id="unsupportedType"></span></small></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PDF.js for PDF files -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+<script>
+// File type detection and routing
+const fileUrl = "{{ document_url|escapejs }}";
+const fileName = "{{ document.stored_object.file_name }}";
+const fileExtension = fileName.split('.').pop().toLowerCase();
+
+// Supported file types
+const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'];
+const textTypes = ['txt', 'text', 'html', 'htm', 'css', 'js', 'json', 'xml', 'csv'];
+const pdfTypes = ['pdf'];
+const officeTypes = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
+
+// Robust file extension detection with fallback
+function getFileExtension(filename) {
+    console.log('Getting file extension for:', filename); // Debug logging
+    if (!filename || typeof filename !== 'string' || filename.trim() === '') {
+        return 'UNKNOWN';
+    }
+    const parts = filename.split('.');
+    if (parts.length <= 1) {
+        return 'NO_EXTENSION';
+    }
+    const extension = parts[parts.length - 1].toLowerCase();
+    if (!extension || extension === filename.toLowerCase()) {
+        return 'UNKNOWN';
+    }
+    return extension;
+}
+
+// Image Viewer
+function showImageViewer() {
+    const imageViewer = document.getElementById('imageViewer');
+    const imageContent = document.getElementById('imageContent');
+
+    imageContent.src = fileUrl;
+    imageViewer.style.display = 'block';
+}
+
+// Text Viewer
+function showTextViewer() {
+    const textViewer = document.getElementById('textViewer');
+    const textContent = document.getElementById('textContent');
+
+    fetch(fileUrl)
+        .then(response => response.text())
+        .then(text => {
+            textContent.textContent = text;
+            textViewer.style.display = 'block';
+        })
+        .catch(error => {
+            console.error('Error loading text file:', error);
+            showUnsupportedViewer('Error loading text content.');
+        });
+}
+
+// Office Document Viewer (Google Docs)
+function showOfficeViewer() {
+    const officeViewer = document.getElementById('officeViewer');
+    const officeFrame = document.getElementById('officeFrame');
+
+    // Use Google Docs Viewer for Office documents
+    const googleDocsUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+    officeFrame.src = googleDocsUrl;
+
+    officeViewer.style.display = 'block';
+}
+
+// PDF Viewer
+function showPdfViewer() {
+    const pdfViewer = document.getElementById('pdfViewer');
+    pdfViewer.style.display = 'block';
+
+    // PDF.js setup
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    let pdfDoc = null;
+    let currentPage = 1;
+    let pageRendering = false;
+    let pageNumPending = null;
+    let scale = 1.5;
+    const canvas = document.getElementById('pdfCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function renderPage(num) {
+        pageRendering = true;
+
+        pdfDoc.getPage(num).then(function(page) {
+            const viewport = page.getViewport({ scale: scale });
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+
+            const renderTask = page.render(renderContext);
+
+            renderTask.promise.then(function() {
+                pageRendering = false;
+
+                if (pageNumPending !== null) {
+                    renderPage(pageNumPending);
+                    pageNumPending = null;
+                }
+
+                document.getElementById('pageNum').textContent = num;
+            });
+        });
+    }
+
+    function queueRenderPage(num) {
+        if (pageRendering) {
+            pageNumPending = num;
+        } else {
+            renderPage(num);
+        }
+    }
+
+    function onPrevPage() {
+        if (currentPage <= 1) return;
+        currentPage--;
+        queueRenderPage(currentPage);
+        updatePagination();
+    }
+
+    function onNextPage() {
+        if (currentPage >= pdfDoc.numPages) return;
+        currentPage++;
+        queueRenderPage(currentPage);
+        updatePagination();
+    }
+
+    function updatePagination() {
+        document.getElementById('prevPage').disabled = currentPage <= 1;
+        document.getElementById('nextPage').disabled = currentPage >= pdfDoc.numPages;
+    }
+
+    function zoomIn() {
+        scale += 0.2;
+        document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
+        renderPage(currentPage);
+    }
+
+    function zoomOut() {
+        if (scale <= 0.5) return;
+        scale -= 0.2;
+        document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
+        renderPage(currentPage);
+    }
+
+    // Event listeners for PDF
+    document.getElementById('prevPage').addEventListener('click', onPrevPage);
+    document.getElementById('nextPage').addEventListener('click', onNextPage);
+    document.getElementById('zoomIn').addEventListener('click', zoomIn);
+    document.getElementById('zoomOut').addEventListener('click', zoomOut);
+
+    // Load PDF
+    pdfjsLib.getDocument(fileUrl).promise.then(function(pdfDoc_) {
+        pdfDoc = pdfDoc_;
+        document.getElementById('pageCount').textContent = pdfDoc.numPages;
+        renderPage(currentPage);
+        updatePagination();
+    }).catch(function(error) {
+        console.error('Error loading PDF:', error);
+        showUnsupportedViewer('Error loading PDF document.');
+    });
+}
+
+// Unsupported files
+function showUnsupportedViewer(message) {
+    console.log('Showing unsupported viewer for extension:', fileExtension); // Debug logging
+
+    const unsupportedViewer = document.getElementById('unsupportedViewer');
+    const unsupportedType = document.getElementById('unsupportedType');
+
+    // Handle empty or invalid file extensions more gracefully
+    let displayExtension = fileExtension;
+    if (!fileExtension || fileExtension.trim() === '' || fileExtension === 'unknown') {
+        if (fileName && fileName.trim() !== '') {
+            displayExtension = 'UNSUPPORTED (' + fileName + ')';
+        } else {
+            displayExtension = 'UNAVAILABLE';
+        }
+    }
+
+    unsupportedType.textContent = displayExtension.toUpperCase();
+    unsupportedViewer.style.display = 'block';
+}
+
+// Initialize appropriate viewer based on file type
+function initializeViewer() {
+    const fileTypeBadge = document.getElementById('fileTypeBadge');
+    const loadingText = document.getElementById('loadingText');
+
+    // Hide loading text
+    loadingText.style.display = 'none';
+
+    if (imageTypes.includes(fileExtension)) {
+        fileTypeBadge.textContent = 'Image';
+        showImageViewer();
+    } else if (pdfTypes.includes(fileExtension)) {
+        fileTypeBadge.textContent = 'PDF';
+        showPdfViewer();
+    } else if (textTypes.includes(fileExtension)) {
+        fileTypeBadge.textContent = 'Text';
+        showTextViewer();
+    } else if (officeTypes.includes(fileExtension)) {
+        fileTypeBadge.textContent = 'Office Document';
+        showOfficeViewer();
+    } else {
+        fileTypeBadge.textContent = 'File';
+        showUnsupportedViewer('This file type cannot be previewed in the browser.');
+    }
+}
+
+
+
+// Initialize viewer when page loads
+document.addEventListener('DOMContentLoaded', initializeViewer);
+</script>
+{% endblock %}

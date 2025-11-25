@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Approved Requests (for Attestation)</h2>
+<ul>
+{% for r in requests %}
+  <li>{{ r.contract.title }} — requested by {{ r.requester.get_username }} — processed at {{ r.processed_at }}
+    — <a href="{% url 'oracle:sign' r.id %}">Sign attestation</a>
+  </li>
+{% empty %}
+  <li>No approved requests yet</li>
+{% endfor %}
+</ul>
+{% endblock %}

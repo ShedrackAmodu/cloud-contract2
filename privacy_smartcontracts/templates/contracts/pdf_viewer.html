@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .pdf-viewer-container {
+        width: 100%;
+        height: 90vh;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--background-light);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .pdf-toolbar {
+        background: var(--header-gradient);
+        color: white;
+        padding: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 8px 8px 0 0;
+    }
+
+    .pdf-title {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+
+    .pdf-controls {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .pdf-controls button {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .pdf-controls button:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .pdf-controls button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .page-info {
+        color: white;
+        font-weight: 500;
+    }
+
+    .pdf-viewer {
+        flex: 1;
+        overflow: auto;
+        padding: 1rem;
+        display: flex;
+        justify-content: center;
+        background: #525659; /* PDF.js background color */
+    }
+
+    .pdf-canvas {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        border: 1px solid #333;
+    }
+
+    .back-button {
+        background: var(--background-body);
+        color: var(--text-primary);
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        margin-bottom: 1rem;
+        text-decoration: none;
+        display: inline-block;
+    }
+
+    .back-button:hover {
+        background: var(--light-purple);
+    }
+</style>
+
+<div class="container">
+    <a href="{% url 'contracts:detail' contract.pk %}" class="back-button">← Back to Contract</a>
+
+    <div class="pdf-viewer-container">
+        <div class="pdf-toolbar">
+            <h2 class="pdf-title">{{ document.stored_object.file_name }}</h2>
+            <div class="pdf-controls">
+                <button id="prevPage" disabled>Previous</button>
+                <span class="page-info">Page: <span id="pageNum">1</span> / <span id="pageCount">0</span></span>
+                <button id="nextPage" disabled>Next</button>
+                <button id="zoomOut">Zoom Out</button>
+                <button id="zoomIn">Zoom In</button>
+                <span id="zoomLevel">100%</span>
+            </div>
+        </div>
+
+        <div class="pdf-viewer">
+            <canvas id="pdfCanvas"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- PDF.js from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+
+<script>
+// Set PDF.js worker path
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let pdfDoc = null;
+let pageNum = 1;
+let pageRendering = false;
+let pageNumPending = null;
+let scale = 1.2;
+const canvas = document.getElementById('pdfCanvas');
+const ctx = canvas.getContext('2d');
+
+// Get PDF URL from the current page URL
+const pdfUrl = "{% url 'contracts:view_document' contract.pk document.pk %}";
+
+/**
+ * Render a PDF page
+ */
+function renderPage(num) {
+    pageRendering = true;
+
+    pdfDoc.getPage(num).then(function(page) {
+        const viewport = page.getViewport({ scale: scale });
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        const renderContext = {
+            canvasContext: ctx,
+            viewport: viewport
+        };
+
+        const renderTask = page.render(renderContext);
+
+        renderTask.promise.then(function() {
+            pageRendering = false;
+
+            if (pageNumPending !== null) {
+                renderPage(pageNumPending);
+                pageNumPending = null;
+            }
+
+            // Update page counters
+            document.getElementById('pageNum').textContent = num;
+        });
+    });
+}
+
+/**
+ * If another page rendering in progress, wait until it's done
+ */
+function queueRenderPage(num) {
+    if (pageRendering) {
+        pageNumPending = num;
+    } else {
+        renderPage(num);
+    }
+}
+
+/**
+ * Show previous page
+ */
+function onPrevPage() {
+    if (pageNum <= 1) return;
+    pageNum--;
+    queueRenderPage(pageNum);
+    updatePagination();
+}
+
+/**
+ * Show next page
+ */
+function onNextPage() {
+    if (pageNum >= pdfDoc.numPages) return;
+    pageNum++;
+    queueRenderPage(pageNum);
+    updatePagination();
+}
+
+/**
+ * Update pagination buttons state
+ */
+function updatePagination() {
+    document.getElementById('prevPage').disabled = pageNum <= 1;
+    document.getElementById('nextPage').disabled = pageNum >= pdfDoc.numPages;
+}
+
+/**
+ * Zoom in
+ */
+function zoomIn() {
+    scale += 0.1;
+    document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
+    renderPage(pageNum);
+}
+
+/**
+ * Zoom out
+ */
+function zoomOut() {
+    if (scale <= 0.5) return;
+    scale -= 0.1;
+    document.getElementById('zoomLevel').textContent = Math.round(scale * 100) + '%';
+    renderPage(pageNum);
+}
+
+// Event listeners
+document.getElementById('prevPage').addEventListener('click', onPrevPage);
+document.getElementById('nextPage').addEventListener('click', onNextPage);
+document.getElementById('zoomIn').addEventListener('click', zoomIn);
+document.getElementById('zoomOut').addEventListener('click', zoomOut);
+
+// Disable right-click and keyboard shortcuts
+canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    alert('Downloading is disabled for security reasons.');
+});
+
+document.addEventListener('keydown', (e) => {
+    // Disable Ctrl+S, Ctrl+Shift+S, etc.
+    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        alert('Saving is disabled for security reasons.');
+    }
+
+    // Arrow keys for navigation
+    if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        onPrevPage();
+    } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        onNextPage();
+    }
+});
+
+// Load the PDF
+pdfjsLib.getDocument(pdfUrl).promise.then(function(pdfDoc_) {
+    pdfDoc = pdfDoc_;
+    document.getElementById('pageCount').textContent = pdfDoc.numPages;
+
+    // Render first page
+    renderPage(pageNum);
+    updatePagination();
+}).catch(function(error) {
+    alert('Error loading PDF: ' + error.message);
+});
+</script>
+{% endblock %}

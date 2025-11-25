@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Data Access Verified</h2>
+<p>Computation secure. Data access granted for request {{ dar.id }}.</p>
+<p>File: {{ stored.name }}</p>
+<pre>{{ data }}</pre>
+<p><a href="{% url 'requests_app:my_requests' %}">Back to My Requests</a></p>
+{% endblock %}
