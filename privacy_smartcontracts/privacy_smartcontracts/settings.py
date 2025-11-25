@@ -31,7 +31,7 @@ if PRODUCTION:
     ALLOWED_HOSTS = ['cloudcontract.pythonanywhere.com']
 else:
     DEBUG = True
-    ALLOWED_HOSTS = []
+    ALLOWED_HOSTS = ['cloudcontract.pythonanywhere.com', 'localhost', '127.0.0.1']
 
 
 # Application definition

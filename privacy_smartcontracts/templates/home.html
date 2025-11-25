@@ -285,27 +285,59 @@
 
     /* --- Responsive Design --- */
     @media (max-width: 768px) {
+        .hero-section {
+            padding: 3rem 1rem;
+        }
+
         .hero-section h1 {
             font-size: 2.5rem;
         }
-        
+
         .hero-section p {
             font-size: 1.1rem;
+            margin-bottom: 2rem;
         }
-        
+
+        .hero-cta .btn {
+            display: block;
+            width: 100%;
+            margin: 0.5rem 0;
+            max-width: none;
+        }
+
         .stats-section {
             flex-direction: column;
             gap: 1rem;
         }
-        
+
         .steps-container {
             grid-template-columns: 1fr;
         }
-        
-        .hero-cta .btn {
-            display: block;
-            margin: 0.5rem auto;
-            max-width: 250px;
+
+        .section-title {
+            font-size: 1.8rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .hero-section {
+            padding: 2rem 0.5rem;
+        }
+
+        .hero-section h1 {
+            font-size: 2rem;
+        }
+
+        .hero-section p {
+            font-size: 1rem;
+        }
+
+        .step-card {
+            padding: 1.5rem 1rem;
+        }
+
+        .step-card h3 {
+            font-size: 1.2rem;
         }
     }
 </style>
