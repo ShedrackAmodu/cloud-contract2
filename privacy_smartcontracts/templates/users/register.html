@@ -1,10 +1,455 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
-<h2>Register</h2>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Register</button>
-</form>
+
+<style>
+    /* Register Page Specific Styles */
+    .auth-container {
+        max-width: 500px;
+        margin: 2rem auto;
+        padding: 0;
+    }
+
+    .auth-card {
+        background: var(--background-body);
+        border-radius: 20px;
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+        position: relative;
+        animation: fadeInUp 0.6s ease forwards;
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    .auth-header {
+        background: var(--header-gradient);
+        color: white;
+        padding: 3rem 2.5rem 2rem;
+        text-align: center;
+        position: relative;
+    }
+
+    .auth-header::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .auth-icon {
+        width: 64px;
+        height: 64px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+        font-size: 2rem;
+        backdrop-filter: blur(10px);
+    }
+
+    .auth-title {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: white !important;
+        -webkit-text-fill-color: white !important;
+        background: none !important;
+    }
+
+    .auth-subtitle {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1rem;
+        font-weight: 400;
+    }
+
+    .auth-body {
+        padding: 2.5rem;
+    }
+
+    .auth-form-group {
+        margin-bottom: 1.75rem;
+        position: relative;
+    }
+
+    .auth-form-group:last-of-type {
+        margin-bottom: 2rem;
+    }
+
+    .auth-label {
+        display: block;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.75rem;
+        font-size: 0.95rem;
+    }
+
+    .auth-label .required {
+        color: var(--error-color);
+        margin-left: 0.25rem;
+    }
+
+    .auth-input {
+        width: 100%;
+        padding: 1rem 1.25rem;
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: var(--background-light);
+        color: var(--text-primary);
+        font-family: inherit;
+    }
+
+    .auth-input:focus {
+        outline: none;
+        border-color: var(--accent-purple);
+        box-shadow: 0 0 0 4px rgba(107, 70, 193, 0.1);
+        transform: translateY(-1px);
+        background: var(--background-body);
+    }
+
+    .auth-input::placeholder {
+        color: var(--text-secondary);
+        opacity: 0.6;
+    }
+
+    .auth-help-text {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        line-height: 1.4;
+    }
+
+    .auth-password-requirements {
+        background: var(--light-blue);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        margin-top: 0.75rem;
+        border-left: 4px solid var(--primary-blue);
+    }
+
+    [data-theme="dark"] .auth-password-requirements {
+        background: var(--light-blue);
+    }
+
+    .auth-password-requirements-title {
+        font-weight: 600;
+        color: var(--deep-blue);
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .auth-password-requirements ul {
+        margin: 0;
+        padding-left: 1.25rem;
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        line-height: 1.6;
+    }
+
+    .auth-submit-btn {
+        width: 100%;
+        padding: 1rem;
+        background: var(--header-gradient);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 1.05rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .auth-submit-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+
+    .auth-submit-btn:hover::before {
+        left: 100%;
+    }
+
+    .auth-submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(107, 70, 193, 0.3);
+    }
+
+    .auth-submit-btn:active {
+        transform: translateY(0);
+    }
+
+    .auth-footer {
+        text-align: center;
+        padding: 1.5rem 2.5rem 2.5rem;
+        border-top: 1px solid var(--border-color);
+        background: var(--background-light);
+    }
+
+    .auth-footer-text {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+    }
+
+    .auth-footer-link {
+        color: var(--primary-blue);
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.3s ease;
+    }
+
+    .auth-footer-link:hover {
+        color: var(--accent-purple);
+        text-decoration: underline;
+    }
+
+    .auth-error {
+        background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
+        color: #991B1B;
+        padding: 1rem 1.25rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid var(--error-color);
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    [data-theme="dark"] .auth-error {
+        background: linear-gradient(135deg, #7F1D1D 0%, #991B1B 100%);
+        color: #FECACA;
+    }
+
+    .auth-success {
+        background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
+        color: #065F46;
+        padding: 1rem 1.25rem;
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid var(--success-color);
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    [data-theme="dark"] .auth-success {
+        background: linear-gradient(135deg, #065F46 0%, #047857 100%);
+        color: #D1FAE5;
+    }
+
+    .field-error {
+        color: var(--error-color);
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        display: block;
+    }
+
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .auth-container {
+            margin: 1rem;
+            max-width: 100%;
+        }
+
+        .auth-header {
+            padding: 2.5rem 2rem 1.5rem;
+        }
+
+        .auth-icon {
+            width: 56px;
+            height: 56px;
+            font-size: 1.75rem;
+        }
+
+        .auth-title {
+            font-size: 1.75rem;
+        }
+
+        .auth-body {
+            padding: 2rem 1.5rem;
+        }
+
+        .auth-footer {
+            padding: 1.25rem 1.5rem 2rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .auth-header {
+            padding: 2rem 1.5rem 1.25rem;
+        }
+
+        .auth-title {
+            font-size: 1.5rem;
+        }
+
+        .auth-body {
+            padding: 1.75rem 1.25rem;
+        }
+
+        .auth-input {
+            padding: 0.875rem 1rem;
+        }
+    }
+</style>
+
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="auth-icon">🚀</div>
+            <h1 class="auth-title">Create Account</h1>
+            <p class="auth-subtitle">Join CloudContract and secure your data</p>
+        </div>
+
+        <div class="auth-body">
+            {% if form.errors %}
+                <div class="auth-error">
+                    <strong>⚠️ Please correct the errors below:</strong>
+                    <ul style="margin: 0.5rem 0 0 1.25rem; padding: 0;">
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="auth-{{ message.tags }}" style="{% if message.tags == 'success' %}background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%); color: #065F46; border-left-color: var(--success-color);{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" action="{% url 'register' %}">
+                {% csrf_token %}
+                
+                <div class="auth-form-group">
+                    <label for="{{ form.username.id_for_label }}" class="auth-label">
+                        Username <span class="required">*</span>
+                    </label>
+                    <input 
+                        type="text" 
+                        name="{{ form.username.name }}" 
+                        id="{{ form.username.id_for_label }}"
+                        class="auth-input"
+                        placeholder="Choose a username"
+                        required
+                        autofocus
+                        value="{{ form.username.value|default:'' }}"
+                    >
+                    {% if form.username.help_text %}
+                        <div class="auth-help-text">{{ form.username.help_text }}</div>
+                    {% endif %}
+                    {% if form.username.errors %}
+                        <span class="field-error">{{ form.username.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="auth-form-group">
+                    <label for="{{ form.email.id_for_label }}" class="auth-label">
+                        Email Address <span class="required">*</span>
+                    </label>
+                    <input 
+                        type="email" 
+                        name="{{ form.email.name }}" 
+                        id="{{ form.email.id_for_label }}"
+                        class="auth-input"
+                        placeholder="your.email@example.com"
+                        required
+                        value="{{ form.email.value|default:'' }}"
+                    >
+                    {% if form.email.help_text %}
+                        <div class="auth-help-text">{{ form.email.help_text }}</div>
+                    {% endif %}
+                    {% if form.email.errors %}
+                        <span class="field-error">{{ form.email.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="auth-form-group">
+                    <label for="{{ form.password1.id_for_label }}" class="auth-label">
+                        Password <span class="required">*</span>
+                    </label>
+                    <input 
+                        type="password" 
+                        name="{{ form.password1.name }}" 
+                        id="{{ form.password1.id_for_label }}"
+                        class="auth-input"
+                        placeholder="Create a strong password"
+                        required
+                    >
+                    {% if form.password1.help_text %}
+                        <div class="auth-password-requirements">
+                            <div class="auth-password-requirements-title">Password Requirements:</div>
+                            <ul>
+                                {% for help in form.password1.help_text|make_list %}
+                                    <li>{{ help }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    {% if form.password1.errors %}
+                        <span class="field-error">{{ form.password1.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="auth-form-group">
+                    <label for="{{ form.password2.id_for_label }}" class="auth-label">
+                        Confirm Password <span class="required">*</span>
+                    </label>
+                    <input 
+                        type="password" 
+                        name="{{ form.password2.name }}" 
+                        id="{{ form.password2.id_for_label }}"
+                        class="auth-input"
+                        placeholder="Re-enter your password"
+                        required
+                    >
+                    {% if form.password2.help_text %}
+                        <div class="auth-help-text">{{ form.password2.help_text }}</div>
+                    {% endif %}
+                    {% if form.password2.errors %}
+                        <span class="field-error">{{ form.password2.errors.0 }}</span>
+                    {% endif %}
+                </div>
+
+                <button type="submit" class="auth-submit-btn">
+                    Create Account
+                </button>
+            </form>
+        </div>
+
+        <div class="auth-footer">
+            <p class="auth-footer-text">
+                Already have an account?
+            </p>
+            <a href="{% url 'login' %}" class="auth-footer-link">
+                Sign in instead →
+            </a>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
