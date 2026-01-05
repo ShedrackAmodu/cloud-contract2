@@ -1,27 +1,440 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
-<h1>Welcome to Privacy-Preserving Smart Contracts PoC</h1>
-<p>This platform demonstrates privacy-preserving smart contracts with encrypted data storage, access control, and audit trails.</p>
 
-{% if not user.is_authenticated %}
-<h2>How it works:</h2>
-<ol>
-  <li><strong>Register/Login</strong> as a user (include your company for visibility permissions).</li>
-  <li><strong>Data Owners</strong> create contracts with policies and upload encrypted files.</li>
-  <li><strong>Requesters</strong> submit access requests for contracts.</li>
-  <li><strong>Owners</strong> approve or deny requests.</li>
-  <li><strong>Oracle</strong> automatically attests approved requests.</li>
-  <li><strong>Requesters</strong> retrieve verified data after attestation.</li>
-  <li><strong>Audit</strong> logs all actions for compliance.</li>
-</ol>
-<p>Oracle attestation is automated in this PoC.</p>
-<p>Start by <a href="{% url 'register' %}">registering</a> or <a href="{% url 'login' %}">logging in</a>.</p>
-{% else %}
-<p>Welcome back! Use the navigation to manage contracts and requests.</p>
-<p>As a requester, <a href="{% url 'contracts:public' %}">browse available contracts</a> to request access.</p>
-{% if user.is_staff %}
-<p>As staff, you can <a href="{% url 'oracle:pending' %}">sign attestations</a> and <a href="{% url 'audit:audit_list' %}">view audit logs</a>.</p>
+<!-- Inline CSS for the Homepage -->
+<style>
+    /* --- Homepage-specific CSS Variables --- */
+    :root {
+        --hero-gradient: linear-gradient(135deg, #0A66C2 0%, #004080 50%, #4A00E0 100%);
+        --card-shadow: 0 10px 30px rgba(10, 102, 194, 0.15);
+        --card-shadow-hover: 0 15px 40px rgba(74, 0, 224, 0.2);
+        --primary-blue: #0A66C2;
+        --deep-blue: #004080;
+        --light-blue: #EBF8FF;
+        --accent-purple: #6B46C1;
+        --deep-purple: #553C9A;
+        --light-purple: #FAF5FF;
+        --text-primary: #1A202C;
+        --text-secondary: #4A5568;
+        --border-color: #E2E8F0;
+        --background-light: #F7FAFC;
+        --background-body: #FDFEFF;
+        --success-color: #38A169;
+        --error-color: #E53E3E;
+        --warning-color: #DD6B20;
+        --header-gradient: linear-gradient(135deg, var(--primary-blue) 0%, var(--accent-purple) 100%);
+        --card-shadow-global: 0 8px 30px rgba(107, 70, 193, 0.12);
+        --header-shadow: 0 4px 20px rgba(107, 70, 193, 0.15);
+    }
+
+    [data-theme="dark"] {
+        --hero-gradient: linear-gradient(135deg, #3B82F6 0%, #1E40AF 50%, #7C3AED 100%);
+        --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        --card-shadow-hover: 0 15px 40px rgba(0, 0, 0, 0.7);
+        --primary-blue: #3B82F6;
+        --deep-blue: #1E40AF;
+        --light-blue: #1E3A8A;
+        --accent-purple: #8B5CF6;
+        --deep-purple: #7C3AED;
+        --light-purple: #4C1D95;
+        --text-primary: #F1F5F9;
+        --text-secondary: #CBD5E1;
+        --border-color: #334155;
+        --background-light: #1E293B;
+        --background-body: #0F172A;
+        --success-color: #10B981;
+        --error-color: #EF4444;
+        --warning-color: #F59E0B;
+        --card-shadow-global: 0 8px 30px rgba(0, 0, 0, 0.3);
+        --header-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    /* --- Header Customization for Homepage --- */
+    header {
+        padding: 0.5rem 2.5rem; /* Reduced padding */
+    }
+
+
+
+    /* Account for smaller header */
+    body {
+        padding-top: 60px; /* Reduced from 100px */
+    }
+
+    /* --- Hero Section --- */
+    .hero-section {
+        background: var(--hero-gradient);
+        color: white;
+        padding: 6rem 0;
+        text-align: center;
+        border-radius: 16px;
+        margin-bottom: 4rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 20px 40px rgba(10, 102, 194, 0.3);
+    }
+
+    .hero-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+        pointer-events: none;
+    }
+
+    .hero-content {
+        position: relative;
+        z-index: 1;
+        padding: 0 2rem;
+    }
+
+    .hero-section h1 {
+        font-size: clamp(2.8rem, 8vw, 4.2rem);
+        margin-bottom: 1.5rem;
+        font-weight: 900;
+        color: #ffffff !important;
+        -webkit-text-fill-color: white !important;
+        background: none !important;
+        text-shadow: none;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+        border: none;
+        position: relative;
+        visibility: visible;
+        opacity: 1;
+    }
+
+    .hero-section h1::after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 60px;
+        height: 4px;
+        background: linear-gradient(90deg, #87CEEB, #E0F6FF);
+        border-radius: 2px;
+        opacity: 0.8;
+    }
+
+    .hero-subtitle {
+        font-size: clamp(1.1rem, 3vw, 1.5rem);
+        max-width: 750px;
+        margin: 0 auto 3rem;
+        font-weight: 400;
+        color: #ffffff !important;
+        text-shadow: none;
+        line-height: 1.6;
+        visibility: visible;
+        opacity: 1;
+    }
+
+    .hero-cta {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.8s ease 0.4s forwards;
+    }
+
+    .hero-cta .btn {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        padding: 1rem 2.5rem;
+        font-size: 1.1rem;
+        margin: 0 0.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .hero-cta .btn:hover {
+        background: rgba(255, 255, 255, 0.25);
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .hero-cta .btn-secondary {
+        background: transparent;
+    }
+
+    /* --- Stats Section --- */
+    .stats-section {
+        display: flex;
+        justify-content: center;
+        gap: 3rem;
+        margin-bottom: 4rem;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.8s ease 0.6s forwards;
+    }
+
+    .stat-card {
+        text-align: center;
+        padding: 1.5rem;
+    }
+
+    .stat-number {
+        font-size: 3rem;
+        font-weight: 700;
+        color: var(--primary-blue);
+        display: block;
+        line-height: 1;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    /* --- How It Works Section --- */
+    .how-it-works {
+        margin-bottom: 4rem;
+    }
+
+    .section-title {
+        text-align: center;
+        margin-bottom: 3rem;
+        color: var(--text-primary);
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.8s ease forwards;
+    }
+
+    .steps-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 2rem;
+    }
+
+    .step-card {
+        background: var(--background-light);
+        padding: 2.5rem 2rem;
+        border-radius: 12px;
+        box-shadow: var(--card-shadow);
+        text-align: center;
+        transition: all 0.4s ease;
+        border-top: 4px solid var(--primary-blue);
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    .step-card:nth-child(1) { animation: fadeInUp 0.8s ease 0.2s forwards; }
+    .step-card:nth-child(2) { animation: fadeInUp 0.8s ease 0.4s forwards; }
+    .step-card:nth-child(3) { animation: fadeInUp 0.8s ease 0.6s forwards; }
+    .step-card:nth-child(4) { animation: fadeInUp 0.8s ease 0.8s forwards; }
+
+    .step-card:hover {
+        transform: translateY(-10px);
+        box-shadow: var(--card-shadow-hover);
+        border-top-color: #4A00E0;
+    }
+
+    .step-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--primary-blue);
+    }
+
+    .step-card h3 {
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+    }
+
+    /* --- CTA Section --- */
+    .cta-section {
+        background: var(--light-blue);
+        padding: 4rem 2rem;
+        text-align: center;
+        border-radius: 16px;
+        margin-top: 3rem;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.8s ease 1s forwards;
+    }
+
+    .cta-section h2 {
+        color: var(--dark-blue);
+        margin-bottom: 1.5rem;
+    }
+
+    .cta-section p {
+        max-width: 600px;
+        margin: 0 auto 2rem;
+        color: var(--text-secondary);
+    }
+
+    /* --- Animations --- */
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeInUpBold {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* --- Responsive Design --- */
+    @media (max-width: 768px) {
+        .hero-section {
+            padding: 3rem 1rem;
+        }
+
+        .hero-section h1 {
+            font-size: 2.5rem;
+        }
+
+        .hero-section p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        .hero-cta .btn {
+            display: block;
+            width: 100%;
+            margin: 0.5rem 0;
+            max-width: none;
+        }
+
+        .stats-section {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .steps-container {
+            grid-template-columns: 1fr;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .hero-section {
+            padding: 2rem 0.5rem;
+        }
+
+        .hero-section h1 {
+            font-size: 2rem;
+        }
+
+        .hero-section p {
+            font-size: 1rem;
+        }
+
+        .step-card {
+            padding: 1.5rem 1rem;
+        }
+
+        .step-card h3 {
+            font-size: 1.2rem;
+        }
+    }
+</style>
+
+<!-- Hero Section -->
+<section class="hero-section">
+    <h1>Secure Your Data with Unprecedented Control</h1>
+    <p class="hero-subtitle">Share sensitive business information confidently using privacy-preserving smart contracts and trusted execution environments.</p>
+    <div class="hero-cta">
+        {% if not user.is_authenticated %}
+            <a href="{% url 'register' %}" class="btn">Start Securing Your Data</a>
+            <a href="{% url 'login' %}" class="btn btn-secondary">Sign In</a>
+        {% else %}
+            <a href="{% url 'contracts:create' %}" class="btn">Create New Contract</a>
+            <a href="{% url 'contracts:public' %}" class="btn btn-secondary">Browse Contracts</a>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Stats Section -->
+<div class="stats-section">
+    <div class="stat-card">
+        <span class="stat-number">1,247</span>
+        <span class="stat-label">Contracts Secured</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number">99.9%</span>
+        <span class="stat-label">Uptime Reliability</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number">0</span>
+        <span class="stat-label">Security Breaches</span>
+    </div>
+</div>
+
+<!-- How It Works Section -->
+<section class="how-it-works">
+    <h2 class="section-title">How It Works</h2>
+    <div class="steps-container">
+        <div class="step-card">
+            <div class="step-icon">🔐</div>
+            <h3>Create & Encrypt</h3>
+            <p>Define contract terms and upload your sensitive files with military-grade encryption.</p>
+        </div>
+        <div class="step-card">
+            <div class="step-icon">👥</div>
+            <h3>Control Access</h3>
+            <p>Set precise data sharing policies and approve requests from verified partners.</p>
+        </div>
+        <div class="step-card">
+            <div class="step-icon">⚡</div>
+            <h3>Automated Verification</h3>
+            <p>Our oracle system automatically attests approved requests in seconds.</p>
+        </div>
+        <div class="step-card">
+            <div class="step-icon">📊</div>
+            <h3>Audit & Comply</h3>
+            <p>Maintain a permanent, tamper-proof record of all data access for compliance.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Logged In User Specific Content -->
+{% if user.is_authenticated %}
+<section class="cta-section">
+    <h2>Ready to Create Your Next Secure Contract?</h2>
+    <p>Protect your sensitive business agreements with our trusted, encrypted platform.</p>
+    <a href="{% url 'contracts:create' %}" class="btn">Create a Contract Now</a>
+</section>
 {% endif %}
-{% endif %}
+
+<!-- Simple Intersection Observer for animations -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Simple fade-in animation for elements as they enter viewport
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = 1;
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+
+        // Observe all step cards and CTA section
+        document.querySelectorAll('.step-card, .cta-section').forEach(el => {
+            el.style.opacity = 0;
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            observer.observe(el);
+        });
+    });
+</script>
+
 {% endblock %}

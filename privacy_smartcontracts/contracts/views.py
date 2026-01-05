@@ -6,10 +6,13 @@ from django.db import models
 from .models import Contract, ContractDocument
 from .forms import ContractForm, ContractDocumentForm
 from django.contrib import messages
-from django.http import HttpResponseRedirect, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+import mimetypes
+from storage.utils import decrypt_bytes
+from users.models import UserProfile
 
 class OwnerOrSecondPartyRequiredMixin(UserPassesTestMixin):
     def test_func(self):
@@ -191,3 +194,157 @@ def encryption_visualization_view(request, pk):
         messages.error(request, "You are not authorized to view this visualization.")
         return redirect('contracts:detail', pk=pk)
     return render(request, 'contracts/encryption_visualization.html', {'contract': contract})
+
+@login_required
+def view_document(request, contract_pk, doc_pk):
+    """Serve file data to the browser without downloads"""
+    contract = get_object_or_404(Contract, pk=contract_pk)
+    user = request.user
+
+    # Check permission same as ContractDetailView
+    if user.is_authenticated:
+        if contract.owner == user or contract.second_party == user or user.is_superuser:
+            pass
+        elif contract.visibility == 'PUBLIC':
+            pass
+        elif contract.visibility == 'PRIVATE':
+            try:
+                profile = user.userprofile
+                if contract.allowed_companies.filter(pk=profile.pk).exists():
+                    pass
+                else:
+                    messages.error(request, "You do not have permission to view this document.")
+                    return redirect('contracts:detail', pk=contract_pk)
+            except:
+                messages.error(request, "You do not have permission to view this document.")
+                return redirect('contracts:detail', pk=contract_pk)
+        else:
+            messages.error(request, "You do not have permission to view this document.")
+            return redirect('contracts:detail', pk=contract_pk)
+    else:
+        if contract.visibility == 'PUBLIC':
+            pass
+        else:
+            messages.error(request, "You need to log in to view this document.")
+            return redirect('accounts:login')
+
+    doc = get_object_or_404(ContractDocument, pk=doc_pk, contract=contract)
+    stored = doc.stored_object
+
+    # Read encrypted content
+    enc = stored.encrypted_file.read()
+    raw = decrypt_bytes(enc)
+
+    # Get file info
+    file_name = stored.name
+    file_extension = file_name.split('.')[-1].lower() if '.' in file_name else ''
+
+    # Content type mapping for common file types
+    content_type_mapping = {
+        # Images
+        'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+        'gif': 'image/gif', 'bmp': 'image/bmp', 'svg': 'image/svg+xml',
+        'webp': 'image/webp', 'ico': 'image/x-icon',
+
+        # Documents
+        'pdf': 'application/pdf',
+        'txt': 'text/plain', 'text': 'text/plain',
+        'html': 'text/html', 'htm': 'text/html',
+        'css': 'text/css', 'js': 'application/javascript',
+        'json': 'application/json', 'xml': 'application/xml',
+
+        # Office Documents (browser may not render all, but we try)
+        'doc': 'application/msword',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xls': 'application/vnd.ms-excel',
+        'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'ppt': 'application/vnd.ms-powerpoint',
+        'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    }
+
+    content_type = content_type_mapping.get(file_extension, 'application/octet-stream')
+
+    # Serve file with NO download headers
+    response = HttpResponse(raw, content_type=content_type)
+    # CRITICAL: No Content-Disposition header prevents downloads
+    response['X-Content-Type-Options'] = 'nosniff'
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+
+    return response
+
+@login_required
+def universal_viewer(request, contract_pk, doc_pk):
+    """Universal file viewer page for all supported file types"""
+    contract = get_object_or_404(Contract, pk=contract_pk)
+    doc = get_object_or_404(ContractDocument, pk=doc_pk, contract=contract)
+
+    # Check permissions
+    user = request.user
+    if not (contract.owner == user or contract.second_party == user or
+            user.is_superuser or contract.visibility == 'PUBLIC' or
+            (contract.visibility == 'PRIVATE' and hasattr(user, 'userprofile') and
+             contract.allowed_companies.filter(pk=user.userprofile.pk).exists())):
+        messages.error(request, "You do not have permission to view this document.")
+        return redirect('contracts:detail', pk=contract_pk)
+    
+    # Generate absolute URL for the document
+    document_url = request.build_absolute_uri(
+        reverse('contracts:view_document', kwargs={'contract_pk': contract_pk, 'doc_pk': doc_pk})
+    )
+
+    return render(request, 'contracts/universal_viewer.html', {
+        'contract': contract,
+        'document': doc,
+        'document_url': document_url
+    })
+
+@login_required
+def download_document(request, contract_pk, doc_pk):
+    """Serve file data for download"""
+    contract = get_object_or_404(Contract, pk=contract_pk)
+    user = request.user
+
+    # Check permission same as ContractDetailView
+    if user.is_authenticated:
+        if contract.owner == user or contract.second_party == user or user.is_superuser:
+            pass
+        elif contract.visibility == 'PUBLIC':
+            pass
+        elif contract.visibility == 'PRIVATE':
+            try:
+                profile = user.userprofile
+                if contract.allowed_companies.filter(pk=profile.pk).exists():
+                    pass
+                else:
+                    messages.error(request, "You do not have permission to download this document.")
+                    return redirect('contracts:detail', pk=contract_pk)
+            except:
+                messages.error(request, "You do not have permission to download this document.")
+                return redirect('contracts:detail', pk=contract_pk)
+        else:
+            messages.error(request, "You do not have permission to download this document.")
+            return redirect('contracts:detail', pk=contract_pk)
+    else:
+        if contract.visibility == 'PUBLIC':
+            pass
+        else:
+            messages.error(request, "You need to log in to download this document.")
+            return redirect('accounts:login')
+
+    doc = get_object_or_404(ContractDocument, pk=doc_pk, contract=contract)
+    stored = doc.stored_object
+
+    # Read encrypted content
+    enc = stored.encrypted_file.read()
+    raw = decrypt_bytes(enc)
+
+    # Get file info
+    file_name = stored.name
+    content_type = mimetypes.guess_type(file_name)[0] or 'application/octet-stream'
+
+    # Serve file with download headers
+    response = HttpResponse(raw, content_type=content_type)
+    response['Content-Disposition'] = f'attachment; filename="{file_name}"'
+    return response

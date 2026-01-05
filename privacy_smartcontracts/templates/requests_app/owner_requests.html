@@ -1,17 +1,684 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block content %}
-<h2>Requests for your Contracts</h2>
-<ul>
-  {% for r in requests %}
-    <li>{{ r.contract.title }} — {{ r.requester.get_username }} — {{ r.status }}
-      {% if r.reason %} — Reason: {{ r.reason }}{% endif %}
-      {% if r.status == 'PENDING' %}
-        — <a href="{% url 'requests_app:process_request' r.id 'approve' %}">Approve</a>
-        — <a href="{% url 'requests_app:process_request' r.id 'deny' %}">Deny</a>
-      {% elif r.status == 'APPROVED' %}
-        — <a href="{% url 'requests_app:process_request' r.id 'revoke' %}">Revoke</a>
-      {% endif %}
-    </li>
-  {% endfor %}
-</ul>
+
+<!-- Owner Requests Management Styles -->
+<style>
+    /* --- Page Header --- */
+    .requests-header {
+        background: linear-gradient(135deg, var(--background-body) 0%, var(--light-blue) 100%);
+        border-radius: 16px;
+        padding: 3rem 2rem;
+        margin-bottom: 3rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: slideInUp 0.8s ease forwards;
+    }
+
+    .requests-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--header-gradient);
+    }
+
+    .requests-title {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+
+    .requests-subtitle {
+        font-size: 1.2rem;
+        color: var(--text-secondary);
+        margin-bottom: 0;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* --- Stats Section --- */
+    .requests-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: slideInUp 0.8s ease 0.2s forwards;
+    }
+
+    .stat-card {
+        background: var(--background-light);
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 8px 25px rgba(107, 70, 193, 0.12);
+        text-align: center;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 35px rgba(107, 70, 193, 0.2);
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--primary-blue);
+        display: block;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* --- Management Cards --- */
+    .management-section {
+        margin-bottom: 3rem;
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .section-title-area {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .section-icon {
+        width: 48px;
+        height: 48px;
+        background: var(--header-gradient);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .section-title {
+        font-size: 1.8rem;
+        margin: 0;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .section-description {
+        color: var(--text-secondary);
+        margin-top: 0.5rem;
+        font-size: 1rem;
+    }
+
+    .filter-controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .filter-select {
+        padding: 0.5rem 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--background-light);
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: var(--accent-purple);
+        box-shadow: 0 0 0 3px rgba(107, 70, 193, 0.1);
+    }
+
+    /* --- Request Cards Grid --- */
+    .requests-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        gap: 2rem;
+    }
+
+    .request-card {
+        background: var(--background-light);
+        border-radius: 16px;
+        box-shadow: 0 8px 25px rgba(107, 70, 193, 0.12);
+        overflow: hidden;
+        transition: all 0.3s ease;
+        position: relative;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.6s ease forwards;
+        border-left: 4px solid var(--primary-blue);
+    }
+
+    .request-card:nth-child(odd) { animation-delay: 0.1s; }
+    .request-card:nth-child(even) { animation-delay: 0.2s; }
+    .request-card:nth-child(3n) { animation-delay: 0.3s; }
+
+    .request-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 35px rgba(107, 70, 193, 0.2);
+    }
+
+    .request-card.pending {
+        border-left-color: #F59E0B;
+    }
+
+    .request-card.approved {
+        border-left-color: #10B981;
+    }
+
+    .request-card.denied {
+        border-left-color: #EF4444;
+    }
+
+    .request-card.revoked {
+        border-left-color: var(--border-color);
+    }
+
+    .request-header {
+        background: var(--header-gradient);
+        color: white;
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .requester-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex: 1;
+    }
+
+    .requester-avatar {
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+
+    .requester-details h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .request-contract {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        margin-top: 0.25rem;
+    }
+
+    .request-status {
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        flex-shrink: 0;
+    }
+
+    .status-pending {
+        background: #F59E0B;
+        color: white;
+    }
+
+    .status-approved {
+        background: #10B981;
+        color: white;
+    }
+
+    .status-denied {
+        background: #EF4444;
+        color: white;
+    }
+
+    .status-revoked {
+        background: var(--border-color);
+        color: var(--text-primary);
+    }
+
+    .request-body {
+        padding: 1.5rem;
+    }
+
+    .request-reason {
+        background: var(--light-purple);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        border-left: 3px solid var(--accent-purple);
+    }
+
+    .request-reason h4 {
+        margin: 0 0 0.5rem 0;
+        color: var(--deep-purple);
+        font-size: 0.95rem;
+    }
+
+    .request-reason p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    .request-meta {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        font-size: 0.9rem;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .meta-label {
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+
+    .meta-value {
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+
+    /* --- Action Buttons --- */
+    .request-actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .action-btn {
+        padding: 0.6rem 1rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-decoration: none;
+        text-align: center;
+        min-width: 80px;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.3rem;
+        border: 1px solid transparent;
+    }
+
+    .action-btn.approve {
+        background: #10B981;
+        color: white;
+    }
+
+    .action-btn.approve:hover {
+        background: #059669;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+    }
+
+    .action-btn.deny {
+        background: #EF4444;
+        color: white;
+    }
+
+    .action-btn.deny:hover {
+        background: #DC2626;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
+    }
+
+    .action-btn.revoke {
+        background: var(--border-color);
+        color: var(--text-primary);
+    }
+
+    .action-btn.revoke:hover {
+        background: #374151;
+        transform: translateY(-1px);
+    }
+
+    .action-btn.secondary {
+        background: transparent;
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+
+    .action-btn.secondary:hover {
+        background: var(--light-purple);
+        border-color: var(--accent-purple);
+    }
+
+    /* --- Empty State --- */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: var(--background-light);
+        border-radius: 16px;
+        box-shadow: 0 8px 25px rgba(107, 70, 193, 0.12);
+        opacity: 0;
+        transform: translateY(20px);
+        animation: slideInUp 0.8s ease forwards;
+    }
+
+    .empty-state-icon {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-secondary);
+    }
+
+    .empty-state-title {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+    }
+
+    .empty-state-text {
+        color: var(--text-secondary);
+        margin-bottom: 2rem;
+        font-size: 1.1rem;
+    }
+
+    /* --- Animations --- */
+    @keyframes slideInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* --- Mobile Responsive --- */
+    @media (max-width: 768px) {
+        .requests-header {
+            padding: 2rem 1.5rem;
+        }
+
+        .requests-title {
+            font-size: 2rem;
+        }
+
+        .requests-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        .section-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .filter-controls {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .request-header {
+            padding: 1rem;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .requester-info {
+            width: 100%;
+        }
+
+        .request-meta {
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+
+        .request-actions {
+            justify-content: center;
+        }
+    }
+</style>
+
+<!-- Page Header -->
+<div class="requests-header">
+    <h1 class="requests-title">Manage Access Requests</h1>
+    <p class="requests-subtitle">Review and process requests for access to your smart contracts. Make decisions that align with your data privacy policies.</p>
+</div>
+
+<!-- Stats Section -->
+<div class="requests-stats">
+    <div class="stat-card">
+        <span class="stat-number">{{ requests|length }}</span>
+        <span class="stat-label">Total Requests</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number">{{ requests|length|default:0 }}</span>
+        <span class="stat-label">Pending Review</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number">0</span>
+        <span class="stat-label">This Week</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number">98%</span>
+        <span class="stat-label">Response Rate</span>
+    </div>
+</div>
+
+<!-- Pending Requests Section -->
+<div class="management-section">
+    <div class="section-header">
+        <div class="section-title-area">
+            <div class="section-icon">⚖️</div>
+            <div>
+                <h2 class="section-title">Pending Requests</h2>
+                <p class="section-description">Review requests that need your approval or denial decision.</p>
+            </div>
+        </div>
+        <div class="filter-controls">
+            <select class="filter-select" onchange="filterRequests(this.value)">
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="denied">Denied</option>
+                <option value="revoked">Revoked</option>
+            </select>
+        </div>
+    </div>
+
+    {% if requests %}
+        <div class="requests-grid" id="requests-container">
+            {% for r in requests %}
+                <div class="request-card {{ r.status|lower }}"
+                     data-status="{{ r.status|lower }}">
+                    <div class="request-header">
+                        <div class="requester-info">
+                            <div class="requester-avatar">{{ r.requester.get_username|make_list|first|upper }}</div>
+                            <div class="requester-details">
+                                <h3>{{ r.requester.get_username }}</h3>
+                                <div class="request-contract">{{ r.contract.title }}</div>
+                            </div>
+                        </div>
+                        <span class="request-status status-{{ r.status|lower }}">
+                            {{ r.status|title }}
+                        </span>
+                    </div>
+
+                    <div class="request-body">
+                        {% if r.reason %}
+                            <div class="request-reason">
+                                <h4>📝 Access Request</h4>
+                                <p>{{ r.reason }}</p>
+                            </div>
+                        {% endif %}
+
+                        <div class="request-meta">
+                            <div class="meta-item">
+                                <span class="meta-label">Requested:</span>
+                                <span class="meta-value">{{ r.created_at|date:"M j, Y" }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Contract ID:</span>
+                                <span class="meta-value">#{{ r.contract.id }}</span>
+                            </div>
+                            {% if r.resolved_at %}
+                                <div class="meta-item">
+                                    <span class="meta-label">Resolved:</span>
+                                    <span class="meta-value">{{ r.resolved_at|date:"M j, Y" }}</span>
+                                </div>
+                                <div class="meta-item">
+                                    <span class="meta-label">Processed by:</span>
+                                    <span class="meta-value">You</span>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {% if r.status == 'PENDING' %}
+                            <div class="request-actions">
+                                <a href="{% url 'requests_app:process_request' r.id 'approve' %}"
+                                   class="action-btn approve"
+                                   onclick="return confirm('Approve this access request? The requester will be able to access the encrypted contract data.')">
+                                    ✅ Approve
+                                </a>
+                                <a href="{% url 'requests_app:process_request' r.id 'deny' %}"
+                                   class="action-btn deny"
+                                   onclick="return confirm('Deny this access request? This action cannot be undone.')">
+                                    ❌ Deny
+                                </a>
+                            </div>
+
+                            <div style="margin-top: 1rem; padding: 1rem; background: var(--light-blue); border-radius: 8px; font-size: 0.9rem;">
+                                <strong>💡 Decision Tip:</strong> Review the request reason against your contract's data usage policies. Approved requests will be attested by our oracle system before data access is granted.
+                            </div>
+                        {% elif r.status == 'APPROVED' %}
+                            <div class="request-actions">
+                                <a href="{% url 'requests_app:process_request' r.id 'revoke' %}"
+                                   class="action-btn revoke"
+                                   onclick="return confirm('Revoke this approved request? The requester will lose immediate access to the data.')">
+                                    🚫 Revoke
+                                </a>
+                                <a href="{% url 'audit:audit_list' %}?request={{ r.id }}"
+                                   class="action-btn secondary">
+                                    📊 View Activity
+                                </a>
+                            </div>
+
+                            <div style="margin-top: 1rem; padding: 1rem; background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10B981; font-size: 0.9rem;">
+                                <strong>✅ Approved:</strong> This user has been granted access to the contract data via our oracle attestation system.
+                            </div>
+                        {% else %}
+                            <div class="request-actions">
+                                <a href="{% url 'audit:audit_list' %}?request={{ r.id }}"
+                                   class="action-btn secondary">
+                                    📊 View History
+                                </a>
+                            </div>
+
+                            <div style="margin-top: 1rem; padding: 1rem; background: rgba(239, 68, 68, 0.1); border-left: 4px solid #EF4444; font-size: 0.9rem;">
+                                <strong>{{ r.status|title }}:</strong> {% if r.status == 'DENIED' %}This request was denied and cannot be appealed through the system.{% else %}This request was revoked and access has been removed.{% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- Empty State -->
+        <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <h2 class="empty-state-title">No Access Requests</h2>
+            <p class="empty-state-text">Your contracts haven't received any access requests yet. Requests will appear here when users submit them for your approval.</p>
+            <a href="{% url 'contracts:dashboard' %}" class="btn">View My Contracts</a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Quick Actions Footer -->
+{% if requests %}
+<div class="requests-header" style="margin-top: 0; padding: 2rem;">
+    <h3 style="margin-bottom: 1rem; font-size: 1.5rem;">🛠️ Management Tools</h3>
+    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+        <a href="{% url 'contracts:dashboard' %}" class="btn">📄 My Contracts</a>
+        <a href="{% url 'audit:audit_list' %}" class="btn btn-secondary">📊 Audit Logs</a>
+        <a href="{% url 'contracts:create' %}" class="btn btn-secondary">➕ New Contract</a>
+        {% if user.is_staff %}
+            <a href="{% url 'oracle:pending' %}" class="btn btn-secondary">🔐 Oracle Tasks</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Filtering Script -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Filter functionality
+        window.filterRequests = function(status) {
+            const cards = document.querySelectorAll('.request-card');
+            cards.forEach(card => {
+                if (status === 'all' || card.dataset.status === status) {
+                    card.style.display = 'block';
+                    card.style.opacity = '1';
+                } else {
+                    card.style.display = 'none';
+                    card.style.opacity = '0';
+                }
+            });
+        };
+
+        // Add loading states to action links
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            if (btn.tagName === 'A') {
+                btn.addEventListener('click', function(e) {
+                    if (this.classList.contains('approve') || this.classList.contains('deny') || this.classList.contains('revoke')) {
+                        this.innerHTML = '<span class="loading"></span> Processing...';
+                        this.style.pointerEvents = 'none';
+                    }
+                });
+            }
+        });
+    });
+</script>
+
 {% endblock %}

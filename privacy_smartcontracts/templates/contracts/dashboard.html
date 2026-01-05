@@ -1,44 +1,600 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block content %}
-<h1>Your Contracts</h1>
 
-<p><a href="{% url 'contracts:create' %}">Create New Contract</a></p>
+<!-- Dashboard Styles -->
+<style>
+    /* --- Dashboard-specific CSS Variables --- */
+    :root {
+        --contract-card-shadow: 0 8px 25px rgba(107, 70, 193, 0.12);
+        --contract-card-shadow-hover: 0 12px 35px rgba(107, 70, 193, 0.2);
+        --stats-gradient: linear-gradient(135deg, var(--accent-purple) 0%, var(--deep-purple) 100%);
+        --primary-blue: #0A66C2;
+        --deep-blue: #004080;
+        --light-blue: #EBF8FF;
+        --accent-purple: #6B46C1;
+        --deep-purple: #553C9A;
+        --light-purple: #FAF5FF;
+        --text-primary: #1A202C;
+        --text-secondary: #4A5568;
+        --border-color: #E2E8F0;
+        --background-light: #F7FAFC;
+        --background-body: #FDFEFF;
+        --success-color: #38A169;
+        --error-color: #E53E3E;
+        --warning-color: #DD6B20;
+        --header-gradient: linear-gradient(135deg, var(--primary-blue) 0%, var(--accent-purple) 100%);
+        --card-shadow-global: 0 8px 30px rgba(107, 70, 193, 0.12);
+        --header-shadow: 0 4px 20px rgba(107, 70, 193, 0.15);
+    }
 
-{% if contracts %}
-  <ul>
-  {% for c in contracts %}
-    <li>
-      <a href="{% url 'contracts:detail' c.pk %}">{{ c.title }}</a>
-      {% if c.owner == user %}
-        (Owner)
-      {% elif c.second_party == user %}
-        (Second Party)
-      {% endif %}
-      — Status: {{ c.status }}
-      {% if c.owner_accepted %}<span class="badge badge-success">Owner Accepted</span>{% else %}<span class="badge badge-warning">Owner Pending</span>{% endif %}
-      {% if c.second_party %}
-        {% if c.second_party_accepted %}<span class="badge badge-success">Second Party Accepted</span>{% else %}<span class="badge badge-warning">Second Party Pending</span>{% endif %}
-      {% endif %}
-      — created {{ c.created_at|date:"Y-m-d H:i" }}
-      {% if c.owner == user or user.is_superuser %}
-        — <a href="{% url 'contracts:edit' c.pk %}">Edit</a>
-      {% endif %}
-    </li>
-  {% endfor %}
-  </ul>
+    [data-theme="dark"] {
+        --contract-card-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+        --contract-card-shadow-hover: 0 12px 35px rgba(0, 0, 0, 0.7);
+        --stats-gradient: linear-gradient(135deg, var(--accent-purple) 0%, var(--deep-purple) 100%);
+        --primary-blue: #3B82F6;
+        --deep-blue: #1E40AF;
+        --light-blue: #1E3A8A;
+        --accent-purple: #8B5CF6;
+        --deep-purple: #7C3AED;
+        --light-purple: #4C1D95;
+        --text-primary: #F1F5F9;
+        --text-secondary: #CBD5E1;
+        --border-color: #334155;
+        --background-light: #1E293B;
+        --background-body: #0F172A;
+        --success-color: #10B981;
+        --error-color: #EF4444;
+        --warning-color: #F59E0B;
+        --card-shadow-global: 0 8px 30px rgba(0, 0, 0, 0.3);
+        --header-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
 
-  {% if is_paginated %}
-    <div class="pagination">
-      {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}">previous</a>
-      {% endif %}
-      <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
-      {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}">next</a>
-      {% endif %}
+    /* --- Header Section --- */
+    .dashboard-header {
+        background: linear-gradient(135deg, var(--background-body) 0%, var(--light-blue) 100%);
+        border-radius: 16px;
+        padding: 3rem 2rem;
+        margin-bottom: 3rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: slideInUp 0.8s ease forwards;
+    }
+
+    .dashboard-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--header-gradient);
+    }
+
+    .dashboard-title {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+
+    .dashboard-subtitle {
+        font-size: 1.2rem;
+        color: var(--text-secondary);
+        margin-bottom: 2rem;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    /* --- Stats Section --- */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: slideInUp 0.8s ease 0.2s forwards;
+    }
+
+    .stat-card {
+        background: var(--background-light);
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: var(--contract-card-shadow);
+        text-align: center;
+        border-top: 4px solid var(--primary-blue);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: var(--stats-gradient);
+        opacity: 0.03;
+        transform: rotate(45deg);
+        transition: all 0.5s ease;
+    }
+
+    .stat-card:hover::before {
+        top: -30%;
+        left: -30%;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--contract-card-shadow-hover);
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--primary-blue);
+        display: block;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* --- Contracts Grid --- */
+    .contracts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .contract-card {
+        background: var(--background-light);
+        border-radius: 16px;
+        box-shadow: var(--contract-card-shadow);
+        overflow: hidden;
+        transition: all 0.3s ease;
+        position: relative;
+        border-top: 4px solid var(--primary-blue);
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.6s ease forwards;
+    }
+
+    .contract-card:nth-child(odd) { animation-delay: 0.1s; }
+    .contract-card:nth-child(even) { animation-delay: 0.2s; }
+    .contract-card:nth-child(3n) { animation-delay: 0.3s; }
+
+    .contract-card:hover {
+        transform: translateY(-8px);
+        box-shadow: var(--contract-card-shadow-hover);
+    }
+
+    .contract-header {
+        background: var(--header-gradient);
+        color: white;
+        padding: 1.5rem 1.5rem 1rem;
+        position: relative;
+    }
+
+    .contract-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        display: block;
+        text-decoration: none;
+        color: white;
+        line-height: 1.3;
+    }
+
+    .contract-title:hover {
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .contract-meta {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+        font-size: 0.9rem;
+    }
+
+    .contract-role {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 0.3rem 0.7rem;
+        border-radius: 20px;
+        font-weight: 500;
+    }
+
+    .contract-date {
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .contract-body {
+        padding: 1.5rem;
+    }
+
+    .contract-description {
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+        line-height: 1.5;
+    }
+
+    /* --- Status Badges --- */
+    .status-badges {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .status-badge {
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .status-badge.success {
+        background: var(--success-color);
+        color: white;
+    }
+
+    .status-badge.warning {
+        background: var(--warning-color);
+        color: white;
+    }
+
+    .status-badge.info {
+        background: var(--primary-blue);
+        color: white;
+    }
+
+    .status-badge.secondary {
+        background: var(--border-color);
+        color: var(--text-primary);
+    }
+
+    .contract-status {
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+
+    /* --- Action Buttons --- */
+    .contract-actions {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 1.5rem;
+    }
+
+    .contract-action-btn {
+        padding: 0.6rem 1.2rem;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .contract-action-btn.primary {
+        background: var(--header-gradient);
+        color: white;
+    }
+
+    .contract-action-btn.primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(107, 70, 193, 0.3);
+    }
+
+    .contract-action-btn.secondary {
+        background: transparent;
+        color: var(--text-primary);
+        border: 2px solid var(--border-color);
+    }
+
+    .contract-action-btn.secondary:hover {
+        background: var(--light-purple);
+        border-color: var(--accent-purple);
+    }
+
+    /* --- Empty State --- */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: var(--background-light);
+        border-radius: 16px;
+        box-shadow: var(--contract-card-shadow);
+        opacity: 0;
+        transform: translateY(20px);
+        animation: slideInUp 0.8s ease forwards;
+    }
+
+    .empty-state-icon {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-secondary);
+    }
+
+    .empty-state-title {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+    }
+
+    .empty-state-text {
+        color: var(--text-secondary);
+        margin-bottom: 2rem;
+        font-size: 1.1rem;
+    }
+
+    /* --- Pagination --- */
+    .pagination-container {
+        margin-top: 3rem;
+        padding: 2rem;
+        background: var(--background-light);
+        border-radius: 12px;
+        box-shadow: var(--contract-card-shadow);
+        opacity: 0;
+        transform: translateY(20px);
+        animation: slideInUp 0.8s ease forwards;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .pagination a, .pagination span {
+        padding: 0.75rem 1.25rem;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+
+    .pagination a {
+        background: var(--header-gradient);
+        color: white;
+    }
+
+    .pagination a:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(107, 70, 193, 0.3);
+    }
+
+    .pagination span {
+        background: var(--accent-purple);
+        color: white;
+    }
+
+    /* --- Animations --- */
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes slideInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* --- Mobile Responsive --- */
+    @media (max-width: 768px) {
+        .dashboard-header {
+            padding: 2rem 1.5rem;
+        }
+
+        .dashboard-title {
+            font-size: 2rem;
+        }
+
+        .contracts-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+        }
+
+        .contract-meta {
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: flex-start;
+        }
+    }
+</style>
+
+<!-- Dashboard Header -->
+<div class="dashboard-header">
+    <h1 class="dashboard-title">Contract Dashboard</h1>
+    <p class="dashboard-subtitle">Manage and track your privacy-preserving smart contracts</p>
+    <a href="{% url 'contracts:create' %}" class="btn">+ Create New Contract</a>
+</div>
+
+<!-- Stats Section -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <span class="stat-number">{{ contracts|length }}</span>
+        <span class="stat-label">Total Contracts</span>
     </div>
-  {% endif %}
+    <div class="stat-card">
+        <span class="stat-number">{{ contracts|length|default:0 }}</span>
+        <span class="stat-label">Active</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number">0</span>
+        <span class="stat-label">Completed</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-number">0</span>
+        <span class="stat-label">This Month</span>
+    </div>
+</div>
+
+<!-- Contracts Grid -->
+{% if contracts %}
+    <div class="contracts-grid">
+        {% for c in contracts %}
+            <div class="contract-card">
+                <div class="contract-header">
+                    <a href="{% url 'contracts:detail' c.pk %}" class="contract-title">{{ c.title }}</a>
+                    <div class="contract-meta">
+                        <span class="contract-role">
+                            {% if c.owner == user %}
+                                Owner
+                            {% elif c.second_party == user %}
+                                Second Party
+                            {% else %}
+                                Participant
+                            {% endif %}
+                        </span>
+                        <span class="contract-date">{{ c.created_at|date:"M j, Y" }}</span>
+                    </div>
+                </div>
+
+                <div class="contract-body">
+                    {% if c.description %}
+                        <div class="contract-description">{{ c.description|truncatechars:100 }}</div>
+                    {% endif %}
+
+                    <div class="contract-status">{{ c.status|title }}</div>
+
+                    <div class="status-badges">
+                        {% if c.owner_accepted %}
+                            <span class="status-badge success">Owner Accepted</span>
+                        {% else %}
+                            <span class="status-badge warning">Owner Pending</span>
+                        {% endif %}
+
+                        {% if c.second_party %}
+                            {% if c.second_party_accepted %}
+                                <span class="status-badge success">Second Party Accepted</span>
+                            {% else %}
+                                <span class="status-badge warning">Second Party Pending</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="status-badge info">Second Party Not Assigned</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="contract-actions">
+                        <a href="{% url 'contracts:detail' c.pk %}" class="contract-action-btn primary">
+                            📄 View Contract
+                        </a>
+
+                        {% if c.owner == user or user.is_superuser %}
+                            <a href="{% url 'contracts:edit' c.pk %}" class="contract-action-btn secondary">
+                                ✏️ Edit
+                            </a>
+                        {% endif %}
+
+                        {% if user.is_staff %}
+                            <a href="{% url 'audit:audit_list' %}?contract={{ c.pk }}" class="contract-action-btn secondary">
+                                📊 Audit
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+        <div class="pagination-container">
+            <div class="pagination">
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}">← Previous</a>
+                {% endif %}
+                <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}">Next →</a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
 {% else %}
-  <p>No contracts yet — <a href="{% url 'contracts:create' %}">create one</a>.</p>
+    <!-- Empty State -->
+    <div class="empty-state">
+        <div class="empty-state-icon">📄</div>
+        <h2 class="empty-state-title">No Contracts Yet</h2>
+        <p class="empty-state-text">Create your first privacy-preserving smart contract to get started with secure data sharing.</p>
+        <a href="{% url 'contracts:create' %}" class="btn">Create Your First Contract</a>
+    </div>
 {% endif %}
+
+<!-- Quick Actions Footer -->
+{% if contracts %}
+    <div class="dashboard-header" style="margin-top: 0; padding: 2rem;">
+        <h3 style="margin-bottom: 1rem; font-size: 1.5rem;">Quick Actions</h3>
+        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+            <a href="{% url 'contracts:create' %}" class="btn">+ New Contract</a>
+            <a href="{% url 'requests_app:my_requests' %}" class="btn btn-secondary">My Requests</a>
+            {% if user.is_staff %}
+                <a href="{% url 'oracle:pending' %}" class="btn btn-secondary">Oracle Tasks</a>
+                <a href="{% url 'audit:audit_list' %}" class="btn btn-secondary">Audit Log</a>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+
+<!-- Scroll Animation Enhancement -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Intersection Observer for fade-in animations on scroll
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        });
+
+        // Observe newly added elements that might appear below fold
+        setTimeout(() => {
+            document.querySelectorAll('.contract-card, .pagination-container').forEach(card => {
+                if (!card.style.animation) {
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(20px)';
+                    card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                    observer.observe(card);
+                }
+            });
+        }, 100);
+    });
+</script>
+
 {% endblock %}

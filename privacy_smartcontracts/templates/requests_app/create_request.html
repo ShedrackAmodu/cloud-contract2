@@ -1,9 +1,551 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block content %}
-<h2>Request Access to: {{ contract.title }}</h2>
-<form method="post">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Request Access</button>
+
+<!-- Create Request Styles -->
+<style>
+    /* --- Page Header --- */
+    .create-request-header {
+        background: linear-gradient(135deg, var(--background-body) 0%, var(--light-blue) 100%);
+        border-radius: 16px;
+        padding: 3rem 2rem;
+        margin-bottom: 3rem;
+        position: relative;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: slideInUp 0.8s ease forwards;
+    }
+
+    .create-request-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--header-gradient);
+    }
+
+    .contract-overview {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 2rem;
+        align-items: center;
+    }
+
+    .contract-info h1 {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .contract-meta-info {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .meta-info-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .meta-info-icon {
+        color: var(--primary-blue);
+    }
+
+    .contract-visibility {
+        padding: 0.3rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .visibility-public {
+        background: #10B981;
+        color: white;
+    }
+
+    .contract-owner {
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+
+    .request-notice {
+        background: var(--light-purple);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border-left: 4px solid var(--accent-purple);
+        margin-top: 1.5rem;
+    }
+
+    .request-notice h3 {
+        margin: 0 0 0.5rem 0;
+        color: var(--deep-purple);
+        font-size: 1.1rem;
+    }
+
+    .request-notice p {
+        margin: 0;
+        color: var(--text-secondary);
+        line-height: 1.5;
+    }
+
+    /* --- Main Request Form --- */
+    .request-form-container {
+        background: var(--background-light);
+        border-radius: 16px;
+        box-shadow: 0 8px 30px rgba(107, 70, 193, 0.12);
+        overflow: hidden;
+        margin-bottom: 3rem;
+        animation: fadeInUp 0.8s ease 0.2s forwards;
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    .form-section {
+        padding: 2.5rem 3rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .form-section:last-of-type {
+        border-bottom: none;
+    }
+
+    .form-section-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .section-icon {
+        width: 48px;
+        height: 48px;
+        background: var(--header-gradient);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .section-title {
+        font-size: 1.8rem;
+        margin: 0;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .section-description {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        line-height: 1.6;
+        margin-top: 0.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* --- Enhanced Form Fields --- */
+    .enhanced-form-group {
+        margin-bottom: 2.5rem;
+        position: relative;
+    }
+
+    .enhanced-form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.75rem;
+        font-size: 1.1rem;
+    }
+
+    .form-label .label-required {
+        color: var(--error-color);
+        margin-left: 0.25rem;
+    }
+
+    .form-help-text {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+        line-height: 1.4;
+    }
+
+    .enhanced-form-group textarea,
+    .enhanced-form-group input[type="text"],
+    .enhanced-form-group input[type="email"] {
+        width: 100%;
+        padding: 1.25rem 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: 10px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: var(--background-light);
+        color: var(--text-primary);
+        font-family: inherit;
+        resize: vertical;
+        min-height: 120px;
+    }
+
+    .enhanced-form-group input:focus,
+    .enhanced-form-group textarea:focus {
+        outline: none;
+        border-color: var(--accent-purple);
+        box-shadow: 0 0 0 4px rgba(107, 70, 193, 0.1);
+        transform: translateY(-1px);
+    }
+
+    .enhanced-form-group input::placeholder,
+    .enhanced-form-group textarea::placeholder {
+        color: var(--text-secondary);
+        opacity: 0.7;
+    }
+
+    /* --- Form Actions --- */
+    .form-actions {
+        padding: 2.5rem 3rem;
+        background: var(--background-body);
+        border-top: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    /* --- Access Policies Preview --- */
+    .access-policies {
+        background: var(--light-purple);
+        border-radius: 12px;
+        padding: 2rem;
+        border: 2px solid var(--accent-purple);
+        margin-bottom: 2rem;
+    }
+
+    .policies-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        color: var(--deep-purple);
+    }
+
+    .policies-list {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .policy-item {
+        background: var(--background-light);
+        border-radius: 8px;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        transition: all 0.3s ease;
+    }
+
+    .policy-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(107, 70, 193, 0.15);
+    }
+
+    .policy-icon {
+        color: var(--primary-blue);
+        font-size: 1.3rem;
+        flex-shrink: 0;
+    }
+
+    .policy-content h4 {
+        margin: 0 0 0.25rem 0;
+        font-size: 1rem;
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+
+    .policy-content p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+
+    /* --- Form Tips --- */
+    .form-tip {
+        background: var(--light-blue);
+        border-radius: 8px;
+        padding: 1.5rem;
+        border-left: 4px solid var(--primary-blue);
+        margin-top: 1.5rem;
+    }
+
+    .form-tip h4 {
+        margin: 0 0 0.5rem 0;
+        color: var(--deep-blue);
+        font-size: 1rem;
+    }
+
+    .form-tip p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    /* --- Animations --- */
+    @keyframes slideInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* --- Error Handling --- */
+    .errorlist {
+        list-style: none;
+        margin: 0 0 1rem 0;
+        padding: 0;
+    }
+
+    .errorlist li {
+        background: var(--error-color);
+        color: white;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    /* --- Mobile Responsive --- */
+    @media (max-width: 768px) {
+        .create-request-header {
+            padding: 2rem 1.5rem;
+        }
+
+        .contract-overview {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            text-align: center;
+        }
+
+        .contract-info h1 {
+            font-size: 2rem;
+        }
+
+        .contract-meta-info {
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .request-form-container {
+            box-shadow: none;
+            margin: 0;
+            border-radius: 0;
+        }
+
+        .form-section {
+            padding: 2rem 1.5rem;
+        }
+
+        .form-actions {
+            padding: 2rem 1.5rem;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .action-buttons {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
+<!-- Contract Overview Header -->
+<div class="create-request-header">
+    <div class="contract-overview">
+        <div class="contract-info">
+            <h1>Request Access</h1>
+            <div class="contract-meta-info">
+                <div class="meta-info-item">
+                    <span class="meta-info-icon">📄</span>
+                    <span>Contract: <strong>{{ contract.title }}</strong></span>
+                </div>
+                <div class="meta-info-item">
+                    <span class="meta-info-icon">👤</span>
+                    <span>Owner: <span class="contract-owner">{{ contract.owner.get_username }}</span></span>
+                </div>
+                <span class="contract-visibility visibility-public">{{ contract.visibility|title }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="request-notice">
+        <h3>🔐 Privacy-Preserving Access Request</h3>
+        <p>You're requesting access to a secure smart contract. Your request will be reviewed by the contract owner, and if approved, data access will be mediated through our trusted oracle system to ensure privacy and security.</p>
+    </div>
+</div>
+
+<!-- Access Policies Preview -->
+<div class="access-policies">
+    <h3 class="policies-title">📋 Data Access Policies for this Contract</h3>
+    <div class="policies-list">
+        {% if contract.policy %}
+            {% if contract.policy.purpose %}
+                <div class="policy-item">
+                    <span class="policy-icon">🎯</span>
+                    <div class="policy-content">
+                        <h4>Purpose</h4>
+                        <p>{{ contract.policy.purpose }}</p>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if contract.policy.retention_days %}
+                <div class="policy-item">
+                    <span class="policy-icon">📅</span>
+                    <div class="policy-content">
+                        <h4>Data Retention</h4>
+                        <p>{{ contract.policy.retention_days }} days from access grant</p>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if contract.policy.allowed_users %}
+                <div class="policy-item">
+                    <span class="policy-icon">👥</span>
+                    <div class="policy-content">
+                        <h4>Authorized Users</h4>
+                        <p>{{ contract.policy.allowed_users }}</p>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% if contract.policy.conditions %}
+                <div class="policy-item">
+                    <span class="policy-icon">⚖️</span>
+                    <div class="policy-content">
+                        <h4>Usage Conditions</h4>
+                        <p>{{ contract.policy.conditions }}</p>
+                    </div>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="policy-item">
+                <span class="policy-icon">🔍</span>
+                <div class="policy-content">
+                    <h4>Review Required</h4>
+                    <p>This contract may have specific access policies that will be reviewed by the owner.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Main Request Form -->
+<form method="post" class="request-form-container">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+        <div style="padding: 0 3rem; margin-bottom: 2rem;">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+
+    <!-- Request Details Section -->
+    <div class="form-section">
+        <div class="form-section-header">
+            <div class="section-icon">📝</div>
+            <div>
+                <h2 class="section-title">Submit Your Access Request</h2>
+                <p class="section-description">Provide details about why you need access to this contract data and how you plan to use it.</p>
+            </div>
+        </div>
+
+        <!-- Request Reason Field -->
+        <div class="enhanced-form-group">
+            <label for="{{ form.reason.id_for_label }}" class="form-label">
+                📝 Access Reason
+                <span class="label-required">*</span>
+            </label>
+            {{ form.reason }}
+            <div class="form-help-text">
+                Explain why you need access to this data and how you plan to use it. Be specific and provide justification.
+            </div>
+            {{ form.reason.errors }}
+        </div>
+
+        <div class="form-tip">
+            <h4>💡 Tips for a Strong Request</h4>
+            <p>Requests with clear justification and specific use cases are more likely to be approved. Include details about your organization, the purpose of data access, and how it aligns with the contract's data policies.</p>
+        </div>
+    </div>
+
+    <!-- Form Actions -->
+    <div class="form-actions">
+        <div class="action-buttons">
+            <a href="{% url 'contracts:public' %}" class="btn btn-secondary" style="padding: 0.75rem 1.5rem;">
+                ← Back to Contracts
+            </a>
+            <a href="{% url 'contracts:detail' contract.pk %}" class="btn" style="padding: 0.75rem 1.5rem; background: transparent; color: var(--text-primary); border: 2px solid var(--border-color);">
+                👁️ View Contract Details
+            </a>
+        </div>
+
+        <button type="submit" style="min-width: 180px;" onclick="this.innerHTML='<span class=\'loading\'></span> Submitting...'; this.disabled=true;">
+            <span class="btn-text" style="display: flex; align-items: center; gap: 0.5rem;">
+                📤 Submit Request
+            </span>
+        </button>
+    </div>
 </form>
+
+<!-- What Happens Next -->
+<div style="background: var(--background-light); border-radius: 16px; padding: 2rem; box-shadow: 0 8px 30px rgba(107, 70, 193, 0.12); animation: fadeInUp 0.8s ease 0.4s forwards; opacity: 0; transform: translateY(20px);">
+    <h3 style="margin-bottom: 1.5rem; color: var(--text-primary); font-size: 1.3rem;">📋 What Happens After You Submit?</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;">
+        <div style="text-align: center;">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">⚖️</div>
+            <h4 style="margin: 0 0 0.5rem 0; color: var(--text-primary);">Review Process</h4>
+            <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Your request will be reviewed by the contract owner who may approve or deny based on policies.</p>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">✅</div>
+            <h4 style="margin: 0 0 0.5rem 0; color: var(--text-primary);">Approval & Attestation</h4>
+            <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">If approved, our oracle system will attest your access rights before data becomes available.</p>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 2.5rem; margin-bottom: 1rem;">🔐</div>
+            <h4 style="margin: 0 0 0.5rem 0; color: var(--text-primary);">Secure Access</h4>
+            <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">Access encrypted data through our secure proxy with full audit trail tracking.</p>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

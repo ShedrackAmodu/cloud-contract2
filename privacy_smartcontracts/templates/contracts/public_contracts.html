@@ -1,31 +1,444 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block content %}
-<h1>Available Contracts</h1>
-<p>Browse active contracts to request access.</p>
+
+<style>
+    /* Public Contracts Specific Styles */
+    .public-contracts-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.8s ease forwards;
+    }
+
+    .public-contracts-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        background: var(--header-gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .public-contracts-header p {
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+        max-width: 700px;
+        margin: 0 auto;
+    }
+
+    .contracts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .contract-card {
+        background: var(--background-light);
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: var(--card-shadow);
+        transition: all 0.3s ease;
+        border-left: 4px solid var(--primary-blue);
+        position: relative;
+        overflow: visible; /* Changed from hidden */
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    .contract-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: var(--header-gradient);
+        opacity: 0.05;
+        transition: left 0.3s ease;
+        pointer-events: none; /* This is crucial - allows clicks to pass through */
+        z-index: 1;
+    }
+
+    .contract-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 30px rgba(107, 70, 193, 0.15);
+        border-left-color: var(--accent-purple);
+    }
+
+    .contract-card:hover::before {
+        left: 0;
+    }
+
+    .contract-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .contract-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 0.5rem;
+        line-height: 1.3;
+    }
+
+    .contract-owner {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .owner-avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--header-gradient);
+        margin-right: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.7rem;
+        font-weight: bold;
+    }
+
+    .contract-description {
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+        line-height: 1.5;
+    }
+
+    .contract-meta {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+    }
+
+    .contract-visibility {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.3rem 0.7rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    .visibility-public {
+        background: rgba(56, 161, 105, 0.1);
+        color: var(--success-color);
+    }
+
+    .visibility-private {
+        background: rgba(221, 107, 32, 0.1);
+        color: var(--warning-color);
+    }
+
+    .contract-actions {
+        position: relative;
+        z-index: 100;
+    }
+
+    .view-details-btn {
+        background: var(--header-gradient);
+        color: white;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+        text-align: center;
+        position: relative;
+        z-index: 1000;
+        pointer-events: auto;
+    }
+
+    .view-details-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(107, 70, 193, 0.3);
+    }
+
+    .no-contracts {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-secondary);
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.8s ease forwards;
+    }
+
+    .no-contracts-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 2rem;
+        gap: 1rem;
+    }
+
+    .pagination a, .pagination span {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .pagination a {
+        background: var(--background-light);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+    }
+
+    .pagination a:hover {
+        background: var(--header-gradient);
+        color: white;
+        border-color: transparent;
+    }
+
+    .pagination .current {
+        background: var(--header-gradient);
+        color: white;
+        font-weight: 600;
+    }
+
+    .search-filter-container {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .search-box {
+        flex: 1;
+        min-width: 250px;
+    }
+
+    .search-box input {
+        width: 100%;
+        padding: 0.8rem 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--background-light);
+        color: var(--text-primary);
+        transition: all 0.3s ease;
+    }
+
+    .search-box input:focus {
+        outline: none;
+        border-color: var(--accent-purple);
+        box-shadow: 0 0 0 3px rgba(107, 70, 193, 0.1);
+    }
+
+    .filter-dropdown {
+        min-width: 150px;
+    }
+
+    .filter-dropdown select {
+        width: 100%;
+        padding: 0.8rem 1rem;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        background: var(--background-light);
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .filter-dropdown select:focus {
+        outline: none;
+        border-color: var(--accent-purple);
+        box-shadow: 0 0 0 3px rgba(107, 70, 193, 0.1);
+    }
+
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .contracts-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .contract-header {
+            flex-direction: column;
+        }
+        
+        .search-filter-container {
+            flex-direction: column;
+        }
+        
+        .contract-actions {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .view-details-btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="public-contracts-header">
+    <h1>Available Contracts</h1>
+    <p>Browse active contracts to request access. All contracts are secured with privacy-preserving technology.</p>
+</div>
+
+<!-- Search and Filter Section -->
+<div class="search-filter-container">
+    <div class="search-box">
+        <input type="text" id="contractSearch" placeholder="Search contracts by title or description...">
+    </div>
+    <div class="filter-dropdown">
+        <select id="visibilityFilter">
+            <option value="all">All Visibility</option>
+            <option value="public">Public Only</option>
+            <option value="private">Private Only</option>
+        </select>
+    </div>
+</div>
 
 {% if contracts %}
-  <ul>
-  {% for c in contracts %}
-    <li>
-      <strong>{{ c.title }}</strong> by {{ c.owner.get_username }}
-      <p>{{ c.description|truncatechars:100 }}</p>
-      <a href="{% url 'contracts:detail' c.pk %}">View Details & Request Access</a>
-    </li>
-  {% endfor %}
-  </ul>
-
-  {% if is_paginated %}
-    <div class="pagination">
-      {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}">previous</a>
-      {% endif %}
-      <span>Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
-      {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}">next</a>
-      {% endif %}
+<div class="contracts-grid" id="contractsContainer">
+    {% for contract in contracts %}
+    <div class="contract-card" data-visibility="{{ contract.visibility|lower }}" data-title="{{ contract.title|lower }}" data-description="{{ contract.description|lower }}">
+        <div class="contract-header">
+            <h3 class="contract-title">{{ contract.title }}</h3>
+            <span class="contract-visibility {% if contract.visibility == 'PUBLIC' %}visibility-public{% else %}visibility-private{% endif %}">
+                {{ contract.visibility }}
+            </span>
+        </div>
+        
+        <div class="contract-owner">
+            <div class="owner-avatar">
+                {{ contract.owner.username|first|upper }}
+            </div>
+            <span>Created by {{ contract.owner.username }}</span>
+        </div>
+        
+        <p class="contract-description">{{ contract.description|truncatechars:150 }}</p>
+        
+        <div class="contract-meta">
+            <span>Created: {{ contract.created_at|date:"M d, Y" }}</span>
+            <span>Status: {{ contract.status }}</span>
+        </div>
+        
+        <div class="contract-actions" style="position: relative; z-index: 100;">
+            <a href="{% url 'contracts:detail' contract.pk %}" class="view-details-btn" style="position: relative; z-index: 1000; pointer-events: auto;">
+                View Details & Request Access
+            </a>
+        </div>
     </div>
-  {% endif %}
-{% else %}
-  <p>No active contracts available.</p>
+    {% endfor %}
+</div>
+
+{% if is_paginated %}
+<div class="pagination">
+    {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}">Previous</a>
+    {% endif %}
+    
+    <span class="current">
+        Page {{ page_obj.number }} of {{ paginator.num_pages }}
+    </span>
+    
+    {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}">Next</a>
+    {% endif %}
+</div>
 {% endif %}
+
+{% else %}
+<div class="no-contracts">
+    <div class="no-contracts-icon">📄</div>
+    <h3>No Active Contracts Available</h3>
+    <p>There are currently no public contracts available for viewing.</p>
+    {% if user.is_authenticated %}
+    <a href="{% url 'contracts:create' %}" class="btn" style="margin-top: 1rem;">Create the First Contract</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Search functionality
+        const searchInput = document.getElementById('contractSearch');
+        const visibilityFilter = document.getElementById('visibilityFilter');
+        const contractCards = document.querySelectorAll('.contract-card');
+        
+        function filterContracts() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const visibilityValue = visibilityFilter.value;
+            
+            contractCards.forEach(card => {
+                const title = card.getAttribute('data-title');
+                const description = card.getAttribute('data-description');
+                const visibility = card.getAttribute('data-visibility');
+                
+                const matchesSearch = title.includes(searchTerm) || description.includes(searchTerm);
+                const matchesVisibility = visibilityValue === 'all' || visibility === visibilityValue;
+                
+                if (matchesSearch && matchesVisibility) {
+                    card.style.display = 'block';
+                    // Add a slight delay for staggered animation
+                    setTimeout(() => {
+                        card.style.opacity = '1';
+                        card.style.transform = 'translateY(0)';
+                    }, 100);
+                } else {
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        card.style.display = 'none';
+                    }, 300);
+                }
+            });
+        }
+        
+        searchInput.addEventListener('input', filterContracts);
+        visibilityFilter.addEventListener('change', filterContracts);
+        
+        // Animation for contract cards on load
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+        
+        const observer = new IntersectionObserver(function(entries) {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+        
+        contractCards.forEach(card => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            card.style.transition = 'opacity 0.6s ease, transform 0.6s ease, display 0.3s ease';
+            observer.observe(card);
+        });
+    });
+</script>
+
 {% endblock %}

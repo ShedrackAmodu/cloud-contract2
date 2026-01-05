@@ -1,236 +1,750 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{% url 'home' %}">Home</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'secure_computation:tee_dashboard' %}">TEE Dashboard</a></li>
-                    <li class="breadcrumb-item active">Validation #{{ validation.id }}</li>
-                </ol>
-            </nav>
-        </div>
+
+<!-- Validation Detail Styles -->
+<style>
+    /* --- Page Header --- */
+    .validation-header {
+        background: linear-gradient(135deg, var(--background-body) 0%, var(--light-blue) 100%);
+        border-radius: 16px;
+        padding: 3rem 2rem;
+        margin-bottom: 3rem;
+        position: relative;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: slideInUp 0.8s ease forwards;
+    }
+
+    .validation-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--header-gradient);
+    }
+
+    .validation-title {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .validation-subtitle {
+        font-size: 1.2rem;
+        color: var(--text-secondary);
+        margin-bottom: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* --- Security Notice --- */
+    .security-notice {
+        background: linear-gradient(135deg, #FEF3C7 0%, rgba(255, 255, 255, 0.9) 100%);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 3rem;
+        box-shadow: 0 8px 25px rgba(245, 158, 11, 0.12);
+        border-left: 4px solid #F59E0B;
+        animation: fadeInUp 0.8s ease 0.2s forwards;
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    .security-notice-icon {
+        font-size: 2rem;
+        color: #F59E0B;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    .security-notice-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: #92400E;
+    }
+
+    .security-notice-text {
+        color: #92400E;
+        line-height: 1.6;
+    }
+
+    /* --- Status Overview --- */
+    .status-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.8s ease 0.4s forwards;
+    }
+
+    .status-card {
+        background: var(--background-light);
+        border-radius: 16px;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: 0 8px 25px rgba(107, 70, 193, 0.12);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        border-left: 4px solid var(--primary-blue);
+    }
+
+    .status-card.verified {
+        border-left-color: #10B981;
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, var(--background-light) 100%);
+    }
+
+    .status-card.failed {
+        border-left-color: #EF4444;
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, var(--background-light) 100%);
+    }
+
+    .status-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 35px rgba(107, 70, 193, 0.2);
+    }
+
+    .status-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    .status-card.verified .status-icon {
+        color: #10B981;
+    }
+
+    .status-card.failed .status-icon {
+        color: #EF4444;
+    }
+
+    .status-card .status-icon {
+        color: var(--text-secondary);
+    }
+
+    .status-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--text-primary);
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-top: 0.5rem;
+    }
+
+    .status-badge.verified {
+        background: #10B981;
+        color: white;
+    }
+
+    .status-badge.failed {
+        background: #EF4444;
+        color: white;
+    }
+
+    /* --- Content Sections --- */
+    .content-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 3rem;
+        margin-bottom: 3rem;
+    }
+
+    .content-card {
+        background: var(--background-light);
+        border-radius: 16px;
+        box-shadow: 0 8px 25px rgba(107, 70, 193, 0.12);
+        overflow: hidden;
+        animation: fadeInUp 0.8s ease forwards;
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    .content-card:nth-child(1) { animation-delay: 0.6s; }
+    .content-card:nth-child(2) { animation-delay: 0.8s; }
+    .content-card:nth-child(3) { animation-delay: 1s; }
+
+    .content-header {
+        background: var(--header-gradient);
+        color: white;
+        padding: 1.5rem 2rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .content-icon {
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .content-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin: 0;
+    }
+
+    .content-body {
+        padding: 2rem;
+    }
+
+    /* --- Request Information Grid --- */
+    .request-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .info-card {
+        background: var(--background-body);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border-left: 4px solid var(--primary-blue);
+    }
+
+    .info-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+    }
+
+    .info-table {
+        width: 100%;
+    }
+
+    .info-table tr {
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .info-table td {
+        padding: 0.75rem 0;
+    }
+
+    .info-table td:first-child {
+        font-weight: 600;
+        color: var(--text-secondary);
+        width: 35%;
+    }
+
+    .info-table td:last-child {
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+
+    /* --- Attestation Status Card --- */
+    .attestation-status-card {
+        background: var(--background-body);
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+        margin-top: 2rem;
+    }
+
+    .attestation-status-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    .attestation-status-icon.verified {
+        color: #10B981;
+    }
+
+    .attestation-status-icon.failed {
+        color: #EF4444;
+    }
+
+    .attestation-status-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: var(--text-primary);
+    }
+
+    .attestation-status-text {
+        color: var(--text-secondary);
+        line-height: 1.6;
+        margin-bottom: 1rem;
+    }
+
+    /* --- Integrity Check Section --- */
+    .integrity-section {
+        margin-bottom: 2rem;
+    }
+
+    .integrity-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        color: var(--text-primary);
+    }
+
+    .integrity-items {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .integrity-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        background: var(--background-body);
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        transition: all 0.3s ease;
+    }
+
+    .integrity-item:hover {
+        box-shadow: 0 4px 15px rgba(107, 70, 193, 0.1);
+    }
+
+    .integrity-label {
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+
+    .integrity-status {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+
+    .integrity-status.verified {
+        background: #10B981;
+        color: white;
+    }
+
+    .integrity-status.failed {
+        background: #EF4444;
+        color: white;
+    }
+
+    /* --- Security Analysis Grid --- */
+    .analysis-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+    }
+
+    .analysis-card {
+        background: var(--background-body);
+        border-radius: 12px;
+        padding: 2rem;
+        border-left: 4px solid var(--primary-blue);
+    }
+
+    .analysis-card h5 {
+        margin: 0 0 1rem 0;
+        font-size: 1.2rem;
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+
+    .analysis-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .analysis-list li {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        padding: 0.5rem 0;
+    }
+
+    .analysis-list li:last-child {
+        margin-bottom: 0;
+    }
+
+    .analysis-icon {
+        color: #10B981;
+        font-size: 1.1rem;
+        margin-top: 0.1rem;
+        flex-shrink: 0;
+    }
+
+    .analysis-text {
+        color: var(--text-secondary);
+        line-height: 1.5;
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    /* --- Security Properties Alert --- */
+    .security-properties-alert {
+        background: var(--light-blue);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-top: 2rem;
+        border-left: 4px solid var(--primary-blue);
+    }
+
+    .security-properties-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        color: var(--deep-blue);
+    }
+
+    .security-properties-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .security-property {
+        display: flex;
+        flex-direction: column;
+        padding: 1rem;
+        background: var(--background-light);
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .property-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .property-icon.confidentiality {
+        color: #10B981;
+    }
+
+    .property-icon.integrity {
+        color: var(--primary-blue);
+    }
+
+    .property-icon.authenticity {
+        color: #F59E0B;
+    }
+
+    .property-icon.privacy {
+        color: #8B5CF6;
+    }
+
+    .property-name {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--text-primary);
+    }
+
+    .property-description {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        line-height: 1.4;
+        margin: 0;
+    }
+
+    /* --- Animations --- */
+    @keyframes slideInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* --- Mobile Responsive --- */
+    @media (max-width: 768px) {
+        .validation-header {
+            padding: 2rem 1.5rem;
+        }
+
+        .validation-title {
+            font-size: 2rem;
+        }
+
+        .status-overview {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        .request-info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .analysis-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .security-properties-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .content-card {
+            margin: 0 -0.5rem;
+            border-radius: 12px;
+        }
+    }
+</style>
+
+<!-- Breadcrumb Navigation -->
+<div style="margin-bottom: 2rem;">
+    <nav aria-label="breadcrumb">
+        <ol style="background: var(--background-light); border-radius: 8px; padding: 0.75rem 1.5rem; margin: 0;">
+            <li style="display: inline; margin-right: 0.5rem; color: var(--text-secondary);">
+                <a href="{% url 'home' %}" style="color: var(--primary-blue); text-decoration: none;">Home</a>
+            </li>
+            <li style="display: inline; margin-right: 0.5rem; color: var(--text-secondary);">></li>
+            <li style="display: inline; margin-right: 0.5rem; color: var(--text-secondary);">
+                <a href="{% url 'secure_computation:tee_dashboard' %}" style="color: var(--primary-blue); text-decoration: none;">TEE Dashboard</a>
+            </li>
+            <li style="display: inline; margin-right: 0.5rem; color: var(--text-secondary);">></li>
+            <li style="display: inline; color: var(--text-primary); font-weight: 500;">
+                Validation #{{ validation.id }}
+            </li>
+        </ol>
+    </nav>
+</div>
+
+<!-- Page Header -->
+<div class="validation-header">
+    <h1 class="validation-title">TEE Validation Details #{{ validation.id }}</h1>
+    <p class="validation-subtitle">
+        <span>🔬</span>
+        Cryptographic verification and attestation information
+    </p>
+</div>
+
+<!-- Security Notice -->
+<div class="security-notice">
+    <span class="security-notice-icon">⚠️</span>
+    <h3 class="security-notice-title">Security Protection Notice</h3>
+    <p class="security-notice-text">Sensitive cryptographic data is truncated for security. Full signatures, keys, and measurements are hashed/truncated to prevent exposure while demonstrating real cryptography.</p>
+</div>
+
+<!-- Status Overview -->
+<div class="status-overview">
+    <div class="status-card {% if validation.zkp_verified %}verified{% else %}failed{% endif %}">
+        <span class="status-icon">🧠</span>
+        <div class="status-title">Zero-Knowledge Proof</div>
+        <span class="status-badge {% if validation.zkp_verified %}verified{% else %}failed{% endif %}">
+            {% if validation.zkp_verified %}Verified{% else %}Failed{% endif %}
+        </span>
     </div>
 
-    <div class="row">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h2 class="card-title mb-0">
-                        <i class="fas fa-search"></i> TEE Validation Details #{{ validation.id }}
-                    </h2>
-                    <small class="text-light">Cryptographic verification and attestation information</small>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-warning">
-                        <i class="fas fa-shield-alt"></i>
-                        <strong>Security Notice:</strong> Sensitive cryptographic data is truncated for security.
-                        Full signatures, keys, and measurements are hashed/truncated to prevent exposure while demonstrating real cryptography.
-                    </div>
-                    <!-- Validation Status -->
-                    <div class="row mb-4">
-                        <div class="col-md-3">
-                            <div class="card text-center {% if validation.zkp_verified %}border-success{% else %}border-danger{% endif %}">
-                                <div class="card-body">
-                                    <i class="fas fa-brain fa-2x {% if validation.zkp_verified %}text-success{% else %}text-danger{% endif %}"></i>
-                                    <h5 class="card-title">ZKP</h5>
-                                    <span class="badge {% if validation.zkp_verified %}badge-success{% else %}badge-danger{% endif %}">
-                                        {% if validation.zkp_verified %}Verified{% else %}Failed{% endif %}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card text-center {% if validation.tee_verified %}border-success{% else %}border-danger{% endif %}">
-                                <div class="card-body">
-                                    <i class="fas fa-shield-alt fa-2x {% if validation.tee_verified %}text-success{% else %}text-danger{% endif %}"></i>
-                                    <h5 class="card-title">TEE</h5>
-                                    <span class="badge {% if validation.tee_verified %}badge-success{% else %}badge-danger{% endif %}">
-                                        {% if validation.tee_verified %}Attested{% else %}Failed{% endif %}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card text-center {% if validation.smpc_verified %}border-success{% else %}border-danger{% endif %}">
-                                <div class="card-body">
-                                    <i class="fas fa-users fa-2x {% if validation.smpc_verified %}text-success{% else %}text-danger{% endif %}"></i>
-                                    <h5 class="card-title">SMPC</h5>
-                                    <span class="badge {% if validation.smpc_verified %}badge-success{% else %}badge-danger{% endif %}">
-                                        {% if validation.smpc_verified %}Verified{% else %}Failed{% endif %}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card text-center {% if validation.overall_verified %}border-success{% else %}border-danger{% endif %}">
-                                <div class="card-body">
-                                    <i class="fas fa-lock fa-2x {% if validation.overall_verified %}text-success{% else %}text-danger{% endif %}"></i>
-                                    <h5 class="card-title">Overall</h5>
-                                    <span class="badge {% if validation.overall_verified %}badge-success{% else %}badge-danger{% endif %}">
-                                        {% if validation.overall_verified %}Secure{% else %}Failed{% endif %}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+    <div class="status-card {% if validation.tee_verified %}verified{% else %}failed{% endif %}">
+        <span class="status-icon">🛡️</span>
+        <div class="status-title">TEE Attestation</div>
+        <span class="status-badge {% if validation.tee_verified %}verified{% else %}failed{% endif %}">
+            {% if validation.tee_verified %}Attested{% else %}Failed{% endif %}
+        </span>
+    </div>
 
-                    <!-- Request Information -->
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h4>Request Information</h4>
-                            <table class="table table-sm">
-                                <tr>
-                                    <td><strong>Request ID:</strong></td>
-                                    <td>{{ validation.request.id }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Contract:</strong></td>
-                                    <td>{{ validation.request.contract.title }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Requester:</strong></td>
-                                    <td>{{ validation.request.requester.username }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Owner:</strong></td>
-                                    <td>{{ validation.request.contract.owner.username }}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Validation Time:</strong></td>
-                                    <td>{{ validation.validated_at|date:"M d, Y H:i:s" }}</td>
-                                </tr>
-                            </table>
-                        </div>
-                        <div class="col-md-6">
-                            <h4>Attestation Verification</h4>
-                            <div class="alert {% if attestation_valid %}alert-success{% else %}alert-danger{% endif %}">
-                                <i class="fas {% if attestation_valid %}fa-check-circle{% else %}fa-times-circle{% endif %}"></i>
-                                <strong>Attestation Status:</strong>
-                                {% if attestation_valid %}
-                                    Valid - Cryptographically verified
-                                {% else %}
-                                    Invalid - Verification failed
-                                {% endif %}
-                            </div>
-                            {% if validation.tee_attestation %}
-                                <p><strong>Enclave ID:</strong> <code>{{ validation.tee_attestation.enclave_id|truncatechars:12 }}...</code></p>
-                                <p><strong>Measurement:</strong> <code>{{ validation.tee_attestation.measurement|truncatechars:16 }}...</code></p>
+    <div class="status-card {% if validation.smpc_verified %}verified{% else %}failed{% endif %}">
+        <span class="status-icon">👥</span>
+        <div class="status-title">Multi-Party Computation</div>
+        <span class="status-badge {% if validation.smpc_verified %}verified{% else %}failed{% endif %}">
+            {% if validation.smpc_verified %}Verified{% else %}Failed{% endif %}
+        </span>
+    </div>
+
+    <div class="status-card {% if validation.overall_verified %}verified{% else %}failed{% endif %}">
+        <span class="status-icon">🔒</span>
+        <div class="status-title">Overall Security</div>
+        <span class="status-badge {% if validation.overall_verified %}verified{% else %}failed{% endif %}">
+            {% if validation.overall_verified %}Secure{% else %}Failed{% endif %}
+        </span>
+    </div>
+</div>
+
+<!-- Content Sections -->
+<div class="content-grid">
+    <!-- Request Information & Attestation -->
+    <div class="content-card">
+        <div class="content-header">
+            <div class="content-icon">📋</div>
+            <h3 class="content-title">Request Information & Attestation</h3>
+        </div>
+        <div class="content-body">
+            <div class="request-info-grid">
+                <div class="info-card">
+                    <h4 class="info-title">📄 Request Details</h4>
+                    <table class="info-table">
+                        <tr>
+                            <td>Request ID:</td>
+                            <td><code>{{ validation.request.id }}</code></td>
+                        </tr>
+                        <tr>
+                            <td>Contract:</td>
+                            <td>{{ validation.request.contract.title }}</td>
+                        </tr>
+                        <tr>
+                            <td>Requester:</td>
+                            <td>{{ validation.request.requester.username }}</td>
+                        </tr>
+                        <tr>
+                            <td>Owner:</td>
+                            <td>{{ validation.request.contract.owner.username }}</td>
+                        </tr>
+                        <tr>
+                            <td>Validation Time:</td>
+                            <td>{{ validation.validated_at|date:"M d, Y H:i:s" }}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="info-card">
+                    <h4 class="info-title">🔐 Attestation Verification</h4>
+                    <div class="attestation-status-card">
+                        <span class="attestation-status-icon {% if attestation_valid %}verified{% else %}failed{% endif %}">
+                            {% if attestation_valid %}✅{% else %}❌{% endif %}
+                        </span>
+                        <h5 class="attestation-status-title">Attestation Status</h5>
+                        <p class="attestation-status-text">
+                            {% if attestation_valid %}
+                                Valid - Cryptographically verified and digitally signed
+                            {% else %}
+                                Invalid - Verification failed or compromised
                             {% endif %}
-                        </div>
+                        </p>
+                        {% if validation.tee_attestation %}
+                            <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 1rem;">
+                                <div><strong>Enclave ID:</strong> <code>{{ validation.tee_attestation.enclave_id|truncatechars:12 }}...</code></div>
+                                <div style="margin-top: 0.5rem;"><strong>Code Measurement:</strong> <code>{{ validation.tee_attestation.measurement|truncatechars:16 }}...</code></div>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Cryptographic Summary (Security Protected) -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header bg-secondary text-white">
-                    <h4 class="card-title mb-0">
-                        <i class="fas fa-lock"></i> Cryptographic Verification Summary
-                    </h4>
-                    <small>Full cryptographic data protected for security - verification status shown above</small>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
-                        <strong>Security Protection:</strong> Complete cryptographic proofs, signatures, and keys are stored securely in the database
-                        but not displayed in the UI to prevent potential security risks. The verification status badges above confirm that all
-                        cryptographic validations passed successfully.
-                    </div>
+    <!-- Cryptographic Verification Summary -->
+    <div class="content-card">
+        <div class="content-header">
+            <div class="content-icon">🔐</div>
+            <h3 class="content-title">Cryptographic Verification Summary</h3>
+            <small style="color: rgba(255, 255, 255, 0.7); margin-top: 0.25rem;">Full cryptographic data protected for security</small>
+        </div>
+        <div class="content-body">
+            <div class="security-notice" style="background: var(--light-blue); border-left-color: var(--primary-blue);">
+                <span class="security-notice-icon" style="color: var(--primary-blue);">🔒</span>
+                <h3 class="security-notice-title" style="color: var(--deep-blue);">Security Protection</h3>
+                <p class="security-notice-text" style="color: var(--deep-blue);">Complete cryptographic proofs, signatures, and keys are stored securely in the database but not displayed in the UI to prevent potential security risks. The verification status above confirms all cryptographic validations passed successfully.</p>
+            </div>
 
-                    <div class="row text-center">
-                        <div class="col-md-4">
-                            <div class="p-3">
-                                <i class="fas fa-brain fa-3x text-info mb-3"></i>
-                                <h5>ZKP Verification</h5>
-                                <p class="text-muted">Zero-knowledge proof validated with cryptographic proof data</p>
-                                <small class="text-muted">Proof data: {{ validation.zkp_proof.proof_data|truncatechars:16 }}...</small>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="p-3">
-                                <i class="fas fa-shield-alt fa-3x text-success mb-3"></i>
-                                <h5>TEE Attestation</h5>
-                                <p class="text-muted">Remote attestation verified with ECDSA signature</p>
-                                <small class="text-muted">Enclave: {{ validation.tee_attestation.enclave_id|truncatechars:12 }}...</small>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="p-3">
-                                <i class="fas fa-users fa-3x text-warning mb-3"></i>
-                                <h5>SMPC Computation</h5>
-                                <p class="text-muted">Multi-party computation completed with share verification</p>
-                                <small class="text-muted">{{ validation.smpc_result.parties }} parties verified</small>
-                            </div>
-                        </div>
-                    </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; margin-top: 2rem;">
+                <div style="background: var(--background-body); border-radius: 12px; padding: 2rem; text-align: center; border-left: 4px solid #10B981;">
+                    <span style="font-size: 3rem; margin-bottom: 1rem; display: block;">🧠</span>
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">ZKP Verification</h4>
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem;">Zero-knowledge proof validated with cryptographic proof data</p>
+                    <small style="color: var(--text-secondary); font-family: monospace;">{{ validation.zkp_proof.proof_data|truncatechars:16 }}...</small>
+                </div>
+
+                <div style="background: var(--background-body); border-radius: 12px; padding: 2rem; text-align: center; border-left: 4px solid var(--primary-blue);">
+                    <span style="font-size: 3rem; margin-bottom: 1rem; display: block;">🛡️</span>
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">TEE Attestation</h4>
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem;">Remote attestation verified with ECDSA signature</p>
+                    <small style="color: var(--text-secondary); font-family: monospace;">{{ validation.tee_attestation.enclave_id|truncatechars:12 }}...</small>
+                </div>
+
+                <div style="background: var(--background-body); border-radius: 12px; padding: 2rem; text-align: center; border-left: 4px solid #F59E0B;">
+                    <span style="font-size: 3rem; margin-bottom: 1rem; display: block;">👥</span>
+                    <h4 style="color: var(--text-primary); margin-bottom: 0.5rem;">SMPC Computation</h4>
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem;">Multi-party computation completed with share verification</p>
+                    <small style="color: var(--text-secondary);">{{ validation.smpc_result.parties }} parties verified</small>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Security Analysis -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card shadow">
-                <div class="card-header bg-dark text-white">
-                    <h4 class="card-title mb-0">
-                        <i class="fas fa-chart-line"></i> Security Analysis
-                    </h4>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h5>Integrity Verification</h5>
-                            <ul class="list-group">
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Code Measurement
-                                    <span class="badge badge-success badge-pill">
-                                        <i class="fas fa-check"></i>
-                                    </span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Input Integrity Hash
-                                    <span class="badge badge-success badge-pill">
-                                        <i class="fas fa-check"></i>
-                                    </span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Cryptographic Signature
-                                    <span class="badge {% if attestation_valid %}badge-success{% else %}badge-danger{% endif %} badge-pill">
-                                        <i class="fas {% if attestation_valid %}fa-check{% else %}fa-times{% endif %}"></i>
-                                    </span>
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <h5>Security Properties</h5>
-                            <div class="alert alert-info">
-                                <h6><i class="fas fa-lock"></i> Confidentiality</h6>
-                                <p class="mb-1">Data remains encrypted and protected throughout the validation process.</p>
-
-                                <h6><i class="fas fa-shield-alt"></i> Integrity</h6>
-                                <p class="mb-1">Cryptographic guarantees ensure computation results are tamper-proof.</p>
-
-                                <h6><i class="fas fa-key"></i> Authenticity</h6>
-                                <p class="mb-1">Digital signatures prove the origin and integrity of attestations.</p>
-
-                                <h6><i class="fas fa-user-secret"></i> Privacy</h6>
-                                <p class="mb-0">Zero-knowledge proofs validate without revealing sensitive information.</p>
+    <div class="content-card">
+        <div class="content-header">
+            <div class="content-icon">📊</div>
+            <h3 class="content-title">Security Analysis</h3>
+        </div>
+        <div class="content-body">
+            <div class="analysis-grid">
+                <div class="analysis-card">
+                    <h5>🛡️ Integrity Verification</h5>
+                    <div class="integrity-section">
+                        <div class="integrity-items">
+                            <div class="integrity-item">
+                                <span class="integrity-label">Code Measurement</span>
+                                <span class="integrity-status verified">✓</span>
+                            </div>
+                            <div class="integrity-item">
+                                <span class="integrity-label">Input Integrity Hash</span>
+                                <span class="integrity-status verified">✓</span>
+                            </div>
+                            <div class="integrity-item">
+                                <span class="integrity-label">Cryptographic Signature</span>
+                                <span class="integrity-status {% if attestation_valid %}verified{% else %}failed{% endif %}">{% if attestation_valid %}✓{% else %}✕{% endif %}</span>
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div class="analysis-card">
+                    <h5>🔐 Security Properties</h5>
+                    <ul class="analysis-list">
+                        <li class="analysis-list">
+                            <i class="analysis-icon">🔒</i>
+                            <span class="analysis-text"><strong>Confidentiality:</strong> Data remains encrypted and protected throughout the validation process using zero-knowledge proofs and homomorphic encryption.</strong></span>
+                        </li>
+                        <li class="analysis-list">
+                            <i class="analysis-icon">🛡️</i>
+                            <span class="analysis-text"><strong>Integrity:</strong> Cryptographic guarantees ensure computation results are tamper-proof with ECDSA digital signatures.</strong></span>
+                        </li>
+                        <li class="analysis-list">
+                            <i class="analysis-icon">🔑</i>
+                            <span class="analysis-text"><strong>Authenticity:</strong> Digital signatures prove the origin and integrity of attestations with cryptographic verification.</strong></span>
+                        </li>
+                        <li class="analysis-list">
+                            <i class="analysis-icon">👤</i>
+                            <span class="analysis-text"><strong>Privacy:</strong> Zero-knowledge proofs validate without revealing sensitive information through multi-party computation.</strong></span>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
 {% endblock %}

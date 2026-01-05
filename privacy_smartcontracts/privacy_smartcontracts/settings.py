@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from django.core.management.utils import get_random_secret_key
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +21,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-h$k-jyir8u12x1fc!x3!$b_$vs+sa2o$(u988ko6g@i-^+p$u*"
+SECRET_KEY = os.getenv("SECRET_KEY") or get_random_secret_key()
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Production settings
+PRODUCTION = os.getenv('PRODUCTION') == 'true' or 'cloudcontract.pythonanywhere.com' in os.getenv('PYTHONANYWHERE_SITE_HOSTNAME', '')
 
-ALLOWED_HOSTS = []
+if PRODUCTION:
+    DEBUG = False
+    ALLOWED_HOSTS = ['cloudcontract.pythonanywhere.com']
+else:
+    DEBUG = True
+    ALLOWED_HOSTS = ['cloudcontract.pythonanywhere.com', 'localhost', '127.0.0.1']
 
 
 # Application definition

@@ -1,91 +1,884 @@
 {% extends 'base.html' %}
 {% load basename_filters %}
 {% block content %}
-<h1>{{ contract.title }}</h1>
-<p><strong>Owner:</strong> {{ contract.owner.get_username }} {% if contract.owner_accepted %}<span class="badge badge-success">Accepted</span>{% else %}<span class="badge badge-warning">Pending</span>{% endif %}</p>
 
-{% if contract.second_party %}
-  <p><strong>Second Party:</strong> {{ contract.second_party.get_username }} {% if contract.second_party_accepted %}<span class="badge badge-success">Accepted</span>{% else %}<span class="badge badge-warning">Pending</span>{% endif %}</p>
-{% else %}
-    <p><strong>Second Party:</strong> Not Assigned</p>
-{% endif %}
+<!-- Contract View Styles -->
+<style>
+    /* --- Contract Header --- */
+    .contract-header {
+        background: linear-gradient(135deg, var(--background-body) 0%, var(--light-blue) 100%);
+        border-radius: 16px;
+        padding: 3rem 2rem;
+        margin-bottom: 3rem;
+        position: relative;
+        overflow: hidden;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: slideInUp 0.8s ease forwards;
+    }
 
-<p><strong>Status:</strong> {{ contract.status }}</p>
-<p><strong>Created:</strong> {{ contract.created_at }}</p>
+    .contract-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--header-gradient);
+    }
 
-{% if contract.owner == user and not contract.owner_accepted %}
-  <form action="{% url 'contracts:accept_contract' contract.pk %}" method="post" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit" class="btn btn-success btn-sm">Accept as Owner</button>
-  </form>
-{% elif contract.second_party == user and not contract.second_party_accepted %}
-  <form action="{% url 'contracts:accept_contract' contract.pk %}" method="post" style="display:inline;">
-    {% csrf_token %}
-    <button type="submit" class="btn btn-success btn-sm">Accept as Second Party</button>
-  </form>
-{% endif %}
+    .contract-status-header {
+        position: absolute;
+        top: 2rem;
+        right: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border-radius: 50px;
+        padding: 0.5rem 1rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
 
-{% if contract.description %}
-  <h3>Description</h3>
-  <div>{{ contract.description|linebreaks }}</div>
-{% endif %}
+    .contract-status-badge {
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
 
-<h3>Documents</h3>
-{% if documents %}
-    <ul>
-        {% for doc in documents %}
-            <li>
-                <a href="{{ doc.stored_object.file.url }}" target="_blank">{{ doc.stored_object.file_name }}</a> (Uploaded by: {{ doc.uploaded_by.get_username }} on {{ doc.uploaded_at|date:"Y-m-d H:i" }})
-            </li>
-        {% endfor %}
-    </ul>
-{% else %}
-    <p><em>No documents have been uploaded to this contract yet.</em></p>
-{% endif %}
+    .contract-status-badge.active {
+        background: #10B981;
+        color: white;
+    }
 
-{% if user == contract.owner or user == contract.second_party %}
-    <h4>Upload New Document</h4>
-    <form action="{% url 'contracts:upload_document' contract.pk %}" method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        {{ document_form.as_p }}
-        <button type="submit" class="btn btn-primary btn-sm">Upload Document</button>
-    </form>
-{% endif %}
+    .contract-status-badge.pending {
+        background: #F59E0B;
+        color: white;
+    }
 
+    .contract-status-badge.draft {
+        background: var(--border-color);
+        color: var(--text-primary);
+    }
 
-{% if contract.policy %}
-  <h3>Data Usage Policy</h3>
-  <ul>
-    {% if contract.policy.purpose %}
-      <li><strong>Purpose:</strong> {{ contract.policy.purpose }}</li>
-    {% endif %}
-    {% if contract.policy.retention_days %}
-      <li><strong>Retention Days:</strong> {{ contract.policy.retention_days }}</li>
-    {% endif %}
-    {% if contract.policy.allowed_users %}
-      <li><strong>Allowed Users:</strong> {{ contract.policy.allowed_users }}</li>
-    {% endif %}
-    {% if contract.policy.conditions %}
-      <li><strong>Conditions:</strong> {{ contract.policy.conditions }}</li>
-    {% endif %}
-  </ul>
-{% endif %}
+    .contract-title-primary {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
 
-<p><a href="{% url 'contracts:dashboard' %}">Back to dashboard</a>
-{% if contract.owner == user or user.is_superuser %}
-  — <a href="{% url 'contracts:edit' contract.pk %}">Edit</a>
-  — <a href="{% url 'requests_app:owner_requests' %}">Manage Requests</a>
-{% endif %}
-{% if user.is_staff %}
-  — <a href="{% url 'audit:audit_list' %}">View Audit History</a>
-{% endif %}
-{% if user.is_authenticated and user != contract.owner and user != contract.second_party %}
-  <p><a href="{% url 'requests_app:create_request' contract.id %}">Request access to this contract</a></p>
-{% endif %}
+    .contract-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
 
-{% if contract.owner == user or contract.second_party == user or user.is_superuser %}
-    <p><a href="{% url 'contracts:encryption_visualization' contract.pk %}" class="btn btn-info btn-sm">View Encryption Visualization</a></p>
-{% endif %}
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
 
-</p>
+    .meta-icon {
+        width: 40px;
+        height: 40px;
+        background: var(--header-gradient);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .meta-content h4 {
+        margin: 0 0 0.25rem 0;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+
+    .meta-content p {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+
+    /* --- Contract Sections Container --- */
+    .contract-content {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    /* --- Main Content --- */
+    .contract-main {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .contract-section {
+        background: var(--background-light);
+        border-radius: 16px;
+        box-shadow: 0 8px 30px rgba(107, 70, 193, 0.12);
+        overflow: hidden;
+        animation: fadeInUp 0.8s ease forwards;
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    .contract-section:nth-child(1) { animation-delay: 0.1s; }
+    .contract-section:nth-child(2) { animation-delay: 0.2s; }
+    .contract-section:nth-child(3) { animation-delay: 0.3s; }
+    .contract-section:nth-child(4) { animation-delay: 0.4s; }
+
+    .section-header {
+        background: var(--header-gradient);
+        color: white;
+        padding: 1.5rem 2rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .section-icon {
+        width: 32px;
+        height: 32px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .section-title {
+        font-size: 1.3rem;
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .section-content {
+        padding: 2rem;
+    }
+
+    /* --- Description Section --- */
+    .contract-description {
+        line-height: 1.7;
+        color: var(--text-secondary);
+        margin-top: 1rem;
+    }
+
+    /* --- Participants Section --- */
+    .participants-list {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .participant-card {
+        background: var(--background-body);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border-left: 4px solid var(--primary-blue);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .participant-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(107, 70, 193, 0.15);
+    }
+
+    .participant-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex: 1;
+    }
+
+    .participant-avatar {
+        width: 48px;
+        height: 48px;
+        background: var(--header-gradient);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+
+    .participant-details h4 {
+        margin: 0 0 0.25rem 0;
+        font-size: 1rem;
+        color: var(--text-primary);
+    }
+
+    .participant-role {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        font-weight: 500;
+    }
+
+    .acceptance-status {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.5rem;
+    }
+
+    .acceptance-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .acceptance-badge.accepted {
+        background: #10B981;
+        color: white;
+    }
+
+    .acceptance-badge.pending {
+        background: #F59E0B;
+        color: white;
+    }
+
+    .acceptance-badge.not-assigned {
+        background: var(--border-color);
+        color: var(--text-primary);
+    }
+
+    /* --- Documents Section --- */
+    .documents-list {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .document-item {
+        background: var(--background-body);
+        border-radius: 12px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.3s ease;
+        border: 1px solid var(--border-color);
+    }
+
+    .document-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(107, 70, 193, 0.1);
+        border-color: var(--accent-purple);
+    }
+
+    .document-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex: 1;
+    }
+
+    .document-icon {
+        width: 40px;
+        height: 40px;
+        background: var(--header-gradient);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    .document-details h4 {
+        margin: 0 0 0.25rem 0;
+        font-size: 1rem;
+        color: var(--text-primary);
+    }
+
+    .document-meta {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .document-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .document-link {
+        background: var(--header-gradient);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+
+    .document-link:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(107, 70, 193, 0.3);
+    }
+
+    /* --- Upload Form --- */
+    .upload-form {
+        background: var(--light-purple);
+        border-radius: 12px;
+        padding: 2rem;
+        border: 2px dashed var(--accent-purple);
+        margin-top: 1.5rem;
+    }
+
+    .upload-form h4 {
+        margin: 0 0 1rem 0;
+        color: var(--deep-purple);
+        font-size: 1.2rem;
+    }
+
+    .upload-form .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .upload-form button {
+        background: var(--header-gradient);
+        color: white;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .upload-form button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(107, 70, 193, 0.3);
+    }
+
+    /* --- Policy Section --- */
+    .policy-grid {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .policy-item {
+        background: var(--background-body);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border-left: 4px solid var(--primary-blue);
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .policy-icon {
+        color: var(--primary-blue);
+        font-size: 1.5rem;
+        margin-top: 0.25rem;
+        flex-shrink: 0;
+    }
+
+    .policy-content h4 {
+        margin: 0 0 0.5rem 0;
+        color: var(--text-primary);
+        font-size: 1rem;
+    }
+
+    .policy-content p {
+        margin: 0;
+        color: var(--text-secondary);
+        line-height: 1.5;
+    }
+
+    /* --- Sidebar --- */
+    .contract-sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .sidebar-card {
+        background: var(--background-light);
+        border-radius: 16px;
+        box-shadow: 0 8px 30px rgba(107, 70, 193, 0.12);
+        overflow: hidden;
+        animation: fadeInUp 0.8s ease forwards;
+        opacity: 0;
+        transform: translateY(20px);
+        animation-delay: 0.2s;
+    }
+
+    .sidebar-section {
+        padding: 2rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .sidebar-section:last-child {
+        border-bottom: none;
+    }
+
+    .sidebar-section h3 {
+        margin: 0 0 1.5rem 0;
+        font-size: 1.2rem;
+        color: var(--text-primary);
+        font-weight: 600;
+    }
+
+    .action-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .action-item {
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        text-decoration: none;
+        color: var(--text-primary);
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        border: 1px solid var(--border-color);
+    }
+
+    .action-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(107, 70, 193, 0.2);
+        border-color: var(--accent-purple);
+    }
+
+    .action-primary {
+        background: var(--header-gradient);
+        color: white;
+        border-color: var(--primary-blue);
+    }
+
+    .action-primary:hover {
+        background: var(--accent-purple);
+        border-color: var(--deep-purple);
+    }
+
+    .accept-contract-form {
+        margin-top: 1rem;
+    }
+
+    .accept-contract-btn {
+        width: 100%;
+        background: #10B981;
+        color: white;
+        border: none;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .accept-contract-btn:hover {
+        background: #059669;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);
+    }
+
+    /* --- Animations --- */
+    @keyframes slideInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* --- Mobile Responsive --- */
+    @media (max-width: 768px) {
+        .contract-content {
+            grid-template-columns: 1fr;
+        }
+
+        .contract-title-primary {
+            font-size: 2rem;
+        }
+
+        .contract-meta {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        .participants-list {
+            gap: 1rem;
+        }
+
+        .participant-info {
+            gap: 0.75rem;
+        }
+
+        .participant-avatar {
+            width: 40px;
+            height: 40px;
+            font-size: 1rem;
+        }
+
+        .document-info {
+            gap: 0.75rem;
+        }
+
+        .document-icon {
+            width: 35px;
+            height: 35px;
+        }
+
+        .contract-main {
+            gap: 1.5rem;
+        }
+
+        .section-content {
+            padding: 1.5rem;
+        }
+
+        .sidebar-card .sidebar-section {
+            padding: 1.5rem;
+        }
+    }
+</style>
+
+<!-- Contract Header -->
+<div class="contract-header">
+    <div class="contract-status-header">
+        <span class="contract-status-badge {% if contract.status == 'active' %}active{% elif contract.status == 'pending' %}pending{% else %}draft{% endif %}">
+            {{ contract.status|title }}
+        </span>
+    </div>
+
+    <h1 class="contract-title-primary">{{ contract.title }}</h1>
+
+    <div class="contract-meta">
+        <div class="meta-item">
+            <div class="meta-icon">📅</div>
+            <div class="meta-content">
+                <h4>Created</h4>
+                <p>{{ contract.created_at|date:"M j, Y" }} at {{ contract.created_at|date:"g:i A" }}</p>
+            </div>
+        </div>
+
+        <div class="meta-item">
+            <div class="meta-icon">👁️</div>
+            <div class="meta-content">
+                <h4>Visibility</h4>
+                <p>{{ contract.visibility|title }}</p>
+            </div>
+        </div>
+
+        <div class="meta-item">
+            <div class="meta-icon">🔒</div>
+            <div class="meta-content">
+                <h4>Security</h4>
+                <p>Privacy-preserving smart contract</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Grid -->
+<div class="contract-content">
+    <!-- Main Content Areas -->
+    <div class="contract-main">
+        <!-- Description Section -->
+        {% if contract.description %}
+            <div class="contract-section">
+                <div class="section-header">
+                    <div class="section-icon">📝</div>
+                    <h2 class="section-title">Contract Description</h2>
+                </div>
+                <div class="section-content">
+                    <div class="contract-description">{{ contract.description|linebreaks }}</div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Participants Section -->
+        <div class="contract-section">
+            <div class="section-header">
+                <div class="section-icon">👥</div>
+                <h2 class="section-title">Contract Participants</h2>
+            </div>
+            <div class="section-content">
+                <div class="participants-list">
+                    <!-- Owner -->
+                    <div class="participant-card">
+                        <div class="participant-info">
+                            <div class="participant-avatar">{{ contract.owner.get_username|make_list|first|upper }}</div>
+                            <div class="participant-details">
+                                <h4>{{ contract.owner.get_username }}</h4>
+                                <span class="participant-role">Owner</span>
+                            </div>
+                        </div>
+                        <div class="acceptance-status">
+                            <span class="acceptance-badge {% if contract.owner_accepted %}accepted{% else %}pending{% endif %}">
+                                {% if contract.owner_accepted %}Accepted{% else %}Pending{% endif %}
+                            </span>
+                            {% if contract.owner == user and not contract.owner_accepted %}
+                                <form action="{% url 'contracts:accept_contract' contract.pk %}" method="post" class="accept-contract-form">
+                                    {% csrf_token %}
+                                    <button type="submit" class="accept-contract-btn">Accept Contract</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Second Party -->
+                    {% if contract.second_party %}
+                        <div class="participant-card">
+                            <div class="participant-info">
+                                <div class="participant-avatar">{{ contract.second_party.get_username|make_list|first|upper }}</div>
+                                <div class="participant-details">
+                                    <h4>{{ contract.second_party.get_username }}</h4>
+                                    <span class="participant-role">Second Party</span>
+                                </div>
+                            </div>
+                            <div class="acceptance-status">
+                                <span class="acceptance-badge {% if contract.second_party_accepted %}accepted{% else %}pending{% endif %}">
+                                    {% if contract.second_party_accepted %}Accepted{% else %}Pending{% endif %}
+                                </span>
+                                {% if contract.second_party == user and not contract.second_party_accepted %}
+                                    <form action="{% url 'contracts:accept_contract' contract.pk %}" method="post" class="accept-contract-form">
+                                        {% csrf_token %}
+                                        <button type="submit" class="accept-contract-btn">Accept Contract</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="participant-card">
+                            <div class="participant-info">
+                                <div class="participant-avatar">?</div>
+                                <div class="participant-details">
+                                    <h4>Second Party Not Assigned</h4>
+                                    <span class="participant-role">Available for Assignment</span>
+                                </div>
+                            </div>
+                            <div class="acceptance-status">
+                                <span class="acceptance-badge not-assigned">Not Assigned</span>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Documents Section -->
+        <div class="contract-section">
+            <div class="section-header">
+                <div class="section-icon">📄</div>
+                <h2 class="section-title">Contract Documents</h2>
+            </div>
+            <div class="section-content">
+                {% if documents %}
+                    <div class="documents-list">
+                        {% for doc in documents %}
+                            <div class="document-item">
+                                <div class="document-info">
+                                    <div class="document-icon">📄</div>
+                                    <div class="document-details">
+                                        <h4>{{ doc.stored_object.file_name }}</h4>
+                                        <div class="document-meta">
+                                            <span>Uploaded by {{ doc.uploaded_by.get_username }}</span>
+                                            <span>{{ doc.uploaded_at|date:"M j, Y" }}</span>
+                                            <span>{{ doc.uploaded_at|time }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="document-actions">
+                                    <a href="{% url 'contracts:universal_viewer' contract.pk doc.pk %}"
+                                       target="_blank"
+                                       class="document-link">
+                                        👁️ View Document
+                                    </a>
+                                    <a href="{% url 'contracts:download_document' contract.pk doc.pk %}"
+                                       class="document-link"
+                                       style="background: var(--accent-purple);">
+                                        📥 Download
+                                    </a>
+                                </div>
+
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div style="text-align: center; padding: 3rem 2rem; background: var(--light-purple); border-radius: 12px;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem; color: var(--text-secondary);">📄</div>
+                        <h3 style="margin-bottom: 0.5rem; color: var(--text-primary);">No Documents Yet</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 0;">
+                            Documents will be uploaded to this contract as the agreement progresses.
+                        </p>
+                    </div>
+                {% endif %}
+
+                <!-- Upload Form for Authorized Users -->
+                {% if user == contract.owner or user == contract.second_party %}
+                    <div class="upload-form">
+                        <h4>📎 Upload New Document</h4>
+                        <form action="{% url 'contracts:upload_document' contract.pk %}" method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            {{ document_form.as_p }}
+                            <button type="submit">📤 Upload Document</button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Data Usage Policy Section -->
+        {% if contract.policy %}
+            <div class="contract-section">
+                <div class="section-header">
+                    <div class="section-icon">🔒</div>
+                    <h2 class="section-title">Data Usage Policy</h2>
+                </div>
+                <div class="section-content">
+                    <div class="policy-grid">
+                        {% if contract.policy.purpose %}
+                            <div class="policy-item">
+                                <span class="policy-icon">🎯</span>
+                                <div class="policy-content">
+                                    <h4>Purpose</h4>
+                                    <p>{{ contract.policy.purpose }}</p>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        {% if contract.policy.retention_days %}
+                            <div class="policy-item">
+                                <span class="policy-icon">📅</span>
+                                <div class="policy-content">
+                                    <h4>Data Retention</h4>
+                                    <p>{{ contract.policy.retention_days }} days from access grant</p>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        {% if contract.policy.allowed_users %}
+                            <div class="policy-item">
+                                <span class="policy-icon">👤</span>
+                                <div class="policy-content">
+                                    <h4>Authorized Users</h4>
+                                    <p>{{ contract.policy.allowed_users }}</p>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        {% if contract.policy.conditions %}
+                            <div class="policy-item">
+                                <span class="policy-icon">⚖️</span>
+                                <div class="policy-content">
+                                    <h4>Usage Conditions</h4>
+                                    <p>{{ contract.policy.conditions }}</p>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Sidebar -->
+    <div class="contract-sidebar">
+        <div class="sidebar-card">
+            <div class="sidebar-section">
+                <h3>⚡ Quick Actions</h3>
+                <div class="action-list">
+                    <a href="{% url 'contracts:dashboard' %}" class="action-item">
+                        ← Back to Dashboard
+                    </a>
+
+                    {% if contract.owner == user or user.is_superuser %}
+                        <a href="{% url 'contracts:edit' contract.pk %}" class="action-item action-primary">
+                            ✏️ Edit Contract
+                        </a>
+                        <a href="{% url 'requests_app:owner_requests' %}" class="action-item">
+                            🔍 Manage Requests
+                        </a>
+                    {% endif %}
+
+                    {% if user.is_staff %}
+                        <a href="{% url 'audit:audit_list' %}?contract={{ contract.pk }}" class="action-item">
+                            📊 Audit History
+                        </a>
+                    {% endif %}
+
+                    {% if contract.owner == user or contract.second_party == user or user.is_superuser %}
+                        <a href="{% url 'contracts:encryption_visualization' contract.pk %}" class="action-item">
+                            🔐 Encryption Details
+                        </a>
+                    {% endif %}
+
+                    {% if user.is_authenticated and user != contract.owner and user != contract.second_party %}
+                        <a href="{% url 'requests_app:create_request' contract.id %}" class="action-item action-primary">
+                            🛡️ Request Access
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Contract Stats -->
+            <div class="sidebar-section">
+                <h3>📊 Contract Statistics</h3>
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--text-secondary);">Documents:</span>
+                        <span style="font-weight: 600;">{{ documents|length }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--text-secondary);">Created:</span>
+                        <span style="font-weight: 600;">{{ contract.created_at|date:"M j" }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--text-secondary);">Status:</span>
+                        <span class="contract-status-badge {% if contract.status == 'active' %}active{% elif contract.status == 'pending' %}pending{% else %}draft{% endif %}" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;">
+                            {{ contract.status|title }}
+                        </span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: var(--text-secondary);">Security:</span>
+                        <span style="font-weight: 600; color: #10B981;">🔐 Encrypted</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
