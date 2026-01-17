@@ -24,12 +24,15 @@
 </style>
 <div id="visualization-container">
     <div id="info-box">
-        <p>Document: {{ contract.title }}</p>
-        <p>Encryption Layers:</p>
+        <p><strong>Document:</strong> {{ contract.title }}</p>
+        <p><strong>Encryption Details:</strong></p>
         <ul>
-            <li>Layer 1: User A Key Encryption</li>
-            <li>Layer 2: User B Key Encryption</li>
-            <li>Layer 3: Smart Contract Layer (Immutable)</li>
+            <li><strong>Layer 1:</strong> User A Key Encryption (Contract Owner)</li>
+            <li><strong>Layer 2:</strong> User B Key Encryption (Second Party/Requester)</li>
+            <li><strong>Layer 3:</strong> Smart Contract Layer (Immutable Policy Enforcement)</li>
+            <li><strong>Encryption Method:</strong> Fernet Symmetric Encryption (AES-128)</li>
+            <li><strong>Key Management:</strong> Ephemeral keys for temporary access</li>
+            <li><strong>Storage:</strong> Encrypted files stored in secure storage backend</li>
         </ul>
     </div>
 </div>

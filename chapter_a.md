@@ -70,6 +70,20 @@ The contract creation interface includes:
 - Acceptance workflow for both parties
 - Encryption visualization option
 
+**Encryption Details** (`/contracts/encryption/<id>/`):
+The encryption details visualization shows:
+- **Layer 1: User A Key Encryption** - Contract Owner's encryption layer
+- **Layer 2: User B Key Encryption** - Second Party/Requester's encryption layer  
+- **Layer 3: Smart Contract Layer** - Immutable policy enforcement layer
+- **Encryption Method**: Fernet Symmetric Encryption (AES-128)
+- **Key Management**: Ephemeral keys for temporary access
+- **Storage**: Encrypted files stored in secure storage backend
+
+This three-layer encryption ensures that:
+1. Data is encrypted by the contract owner before upload
+2. Additional encryption layer for authorized parties
+3. Smart contract layer enforces access policies immutably
+
 ### 4.2.4 My Requests Page
 
 **Screenshot Location:** My Requests (`/requests/my_requests/`)
@@ -90,17 +104,24 @@ The My Requests page provides requesters with:
 4. **Processing**: Secure computation validation in progress
 5. **Ready**: Data ready for retrieval (if approved)
 
-### 4.2.5 TEE Security Dashboard
+### 4.2.5 SARRT Contract Security Dashboard
 
-**Screenshot Location:** TEE Security (`/secure/tee_dashboard/`)
+**Screenshot Location:** SARRT Contract Security Dashboard (`/secure/tee_dashboard/`)
 
-The TEE Security dashboard demonstrates the Trusted Execution Environment implementation:
-- **Validation List**: Shows all secure computation validations
-- **TEE Demo Section**: Displays:
-  - Enclave ID (unique TEE identifier)
-  - Measurement hash (code/data integrity measurement)
-  - Computation results with integrity verification
-  - Remote attestation with cryptographic signatures
+**Note:** The dashboard has been renamed from "TEE Security Dashboard" to "SARRT CONTRACT SECURITY DASHBOARD" to reflect the comprehensive security implementation.
+
+The SARRT Contract Security Dashboard demonstrates the multi-layered security implementation:
+- **Validation List**: Shows all secure computation validations with ZKP, TEE, and SMPC status
+- **TEE Validation Result Section**: Contains two labeled subsections:
+  - **TEE Enclaves Information**: Displays:
+    - Enclave ID (unique TEE identifier)
+    - Code Measurement hash (code/data integrity measurement)
+    - Attestation Key type (ECDSA P-256)
+  - **Recent Secure Computation**: Shows:
+    - Computation type (privacy-preserving validation)
+    - Input integrity hash
+    - Computation time
+    - Remote attestation with cryptographic signatures
 
 **Validation Detail View** (`/secure/validation/<id>/`):
 - Complete validation breakdown showing:
@@ -112,6 +133,11 @@ The TEE Security dashboard demonstrates the Trusted Execution Environment implem
 - Attestation verification status
 
 ## 4.3 Security Mechanisms Implementation
+
+**Note:** This application deploys three core security mechanisms:
+1. **Zero-Knowledge Proofs (ZKP)** - Privacy-preserving verification
+2. **Trusted Execution Environment (TEE)** - Hardware-backed computation integrity
+3. **Secure Multi-Party Computation (SMPC)** - Distributed privacy-preserving computation
 
 ### 4.3.1 Trusted Execution Environment (TEE)
 
