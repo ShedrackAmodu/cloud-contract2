@@ -71,9 +71,9 @@ class TEEGateway:
         attestation_bytes = json.dumps(attestation_data, sort_keys=True).encode()
         # Hash with SHA-3-256 for enhanced security before signing
         attestation_hash = hashlib.sha3_256(attestation_bytes).digest()
-        # Use Prehashed with SHA3-256 for signing
-        from cryptography.hazmat.primitives import hashes as crypto_hashes
-        signature = self.attestation_key.sign(attestation_hash, ec.ECDSA(crypto_hashes.SHA3_256()))
+        # Use Prehashed wrapper for SHA-3-256 hash
+        from cryptography.hazmat.primitives.asymmetric import utils
+        signature = self.attestation_key.sign(attestation_hash, ec.ECDSA(utils.Prehashed(hashes.SHA3_256())))
 
         # Get public key for verification
         public_key = self.attestation_key.public_key()
@@ -104,9 +104,9 @@ class TEEGateway:
             
             # Hash with SHA-3-256 before verification for enhanced security
             attestation_hash = hashlib.sha3_256(attestation_bytes).digest()
-            # Verify using SHA3-256
-            from cryptography.hazmat.primitives import hashes as crypto_hashes
-            public_key.verify(signature_bytes, attestation_hash, ec.ECDSA(crypto_hashes.SHA3_256()))
+            # Verify using Prehashed SHA3-256
+            from cryptography.hazmat.primitives.asymmetric import utils
+            public_key.verify(signature_bytes, attestation_hash, ec.ECDSA(utils.Prehashed(hashes.SHA3_256())))
             return True
         except Exception:
             return False
