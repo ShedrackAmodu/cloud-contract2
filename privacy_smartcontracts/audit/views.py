@@ -98,7 +98,7 @@ def admin_dashboard(request):
     
     # Attestation Statistics
     total_attestations = Attestation.objects.count()
-    recent_attestations = Attestation.objects.order_by('-created_at')[:10]
+    recent_attestations = Attestation.objects.order_by('-issued_at')[:10]
     
     # Audit Statistics
     total_audit_events = AuditEvent.objects.count()

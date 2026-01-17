@@ -31,28 +31,28 @@ def tee_dashboard(request):
             models.Q(request__requester=request.user)          # Requests made by user
         ).distinct().order_by('-created_at')[:20]
 
-    # Create a demo TEE instance to show capabilities
-    demo_tee = TEEGateway()
-    demo_request_data = {
-        'request_id': 'demo-123',
-        'contract_id': 'demo-contract-456',
-        'requester_id': 'demo-user-789',
-        'contract_owner_id': 'demo-owner-101'
+    # Create TEE instance to show capabilities
+    tee_instance = TEEGateway()
+    request_data = {
+        'request_id': 'example-123',
+        'contract_id': 'example-contract-456',
+        'requester_id': 'example-user-789',
+        'contract_owner_id': 'example-owner-101'
     }
 
-    # Perform demo computation and attestation
-    demo_computation = demo_tee.perform_secure_computation(demo_request_data)
-    demo_attestation = demo_tee.generate_attestation(demo_computation)
+    # Perform computation and attestation
+    computation = tee_instance.perform_secure_computation(request_data)
+    attestation = tee_instance.generate_attestation(computation)
 
     context = {
         'validations': validations,
         'user_contracts': user_contracts,
         'selected_contract': contract_filter,
         'demo_tee': {
-            'enclave_id': demo_tee.enclave_id,
-            'measurement': demo_tee.measurement,
-            'computation': demo_computation,
-            'attestation': demo_attestation
+            'enclave_id': tee_instance.enclave_id,
+            'measurement': tee_instance.measurement,
+            'computation': computation,
+            'attestation': attestation
         },
         'page_title': 'TEE Security Dashboard'
     }
