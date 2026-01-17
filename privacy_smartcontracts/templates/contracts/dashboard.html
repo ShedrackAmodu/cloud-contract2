@@ -442,20 +442,20 @@
 <!-- Stats Section -->
 <div class="stats-grid">
     <div class="stat-card">
-        <span class="stat-number">{{ contracts|length }}</span>
+        <span class="stat-number">{{ total_contracts|default:contracts|length }}</span>
         <span class="stat-label">Total Contracts</span>
     </div>
     <div class="stat-card">
-        <span class="stat-number">{{ contracts|length|default:0 }}</span>
+        <span class="stat-number">{{ active_contracts|default:0 }}</span>
         <span class="stat-label">Active</span>
     </div>
     <div class="stat-card">
-        <span class="stat-number">0</span>
-        <span class="stat-label">Completed</span>
+        <span class="stat-number">{{ pending_contracts|default:0 }}</span>
+        <span class="stat-label">Pending</span>
     </div>
     <div class="stat-card">
-        <span class="stat-number">0</span>
-        <span class="stat-label">This Month</span>
+        <span class="stat-number">{{ draft_contracts|default:0 }}</span>
+        <span class="stat-label">Draft</span>
     </div>
 </div>
 

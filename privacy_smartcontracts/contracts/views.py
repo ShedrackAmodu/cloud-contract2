@@ -40,6 +40,18 @@ class DashboardView(LoginRequiredMixin, ListView):
         # Show contracts owned by the user or where the user is the second_party
         return Contract.objects.filter(models.Q(owner=user) | models.Q(second_party=user))
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        contracts = context['contracts']
+        
+        # Calculate statistics
+        context['total_contracts'] = contracts.count()
+        context['active_contracts'] = contracts.filter(status='ACTIVE').count()
+        context['pending_contracts'] = contracts.filter(status='PENDING_CONFIRMATION').count()
+        context['draft_contracts'] = contracts.filter(status='DRAFT').count()
+        
+        return context
+
 class ContractCreateView(LoginRequiredMixin, CreateView):
     model = Contract
     form_class = ContractForm

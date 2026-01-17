@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     'requests_app',
     'oracle',
     'access_proxy',
-    'audit',
+    'audit.apps.AuditConfig',  # Use AppConfig to auto-create admin
     'secure_computation',
 
 ]

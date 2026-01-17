@@ -1,4 +1,4 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from .models import AuditEvent
 from contracts.models import Contract
@@ -6,10 +6,14 @@ from requests_app.models import DataAccessRequest
 from secure_computation.models import SecureComputationValidation
 from oracle.models import Attestation
 import csv
+import json
+import os
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Count, Q
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime, date
+from pathlib import Path
+import sys
 
 @staff_member_required
 def export_csv(request):
@@ -149,3 +153,147 @@ def admin_dashboard(request):
     }
     
     return render(request, 'audit/admin_dashboard.html', context)
+
+@staff_member_required
+def fitness_margin_report(request):
+    """Generate fitness margin improvements report with graphs"""
+    # Import fitness margin calculator
+    BASE_DIR = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(BASE_DIR))
+    from fitness_margin_calculator import FitnessMarginCalculator
+    
+    calculator = FitnessMarginCalculator()
+    
+    # Check if baseline file exists
+    baseline_file = request.GET.get('baseline', None)
+    baseline_data = None
+    
+    if baseline_file and os.path.exists(baseline_file):
+        with open(baseline_file, 'r') as f:
+            baseline_data = json.load(f)
+    
+    # Calculate metrics
+    results = calculator.calculate_fitness_margins(baseline_data)
+    
+    # Prepare data for graphs
+    graph_data = prepare_graph_data(results)
+    
+    # Serialize results for JavaScript (handle datetime and other non-serializable types)
+    def json_serial(obj):
+        """JSON serializer for objects not serializable by default json code"""
+        if isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+        raise TypeError(f"Type {type(obj)} not serializable")
+    
+    context = {
+        'results': results,
+        'results_json': json.dumps(results, default=json_serial),  # For saveAsBaseline function
+        'graph_data': json.dumps(graph_data, default=json_serial),  # Serialize to JSON for JavaScript
+        'has_baseline': baseline_data is not None,
+        'baseline_file': baseline_file,
+    }
+    
+    return render(request, 'audit/fitness_margin_report.html', context)
+
+def prepare_graph_data(results):
+    """Prepare data in format suitable for Chart.js"""
+    graph_data = {
+        'request_processing': {},
+        'security_validation': {},
+        'system_throughput': {},
+        'attestation_efficiency': {}
+    }
+    
+    if 'improvements' in results:
+        # Request Processing
+        rp = results['improvements']['request_processing']
+        graph_data['request_processing'] = {
+            'approval_rate': {
+                'baseline': results['baseline']['request_processing'].get('approval_rate', 0),
+                'current': results['current']['request_processing'].get('approval_rate', 0),
+                'improvement': rp.get('approval_rate_improvement', 0)
+            },
+            'processing_time': {
+                'baseline': results['baseline']['request_processing'].get('avg_processing_time_hours', 0) or 0,
+                'current': results['current']['request_processing'].get('avg_processing_time_hours', 0) or 0,
+                'reduction': rp.get('processing_time_reduction', 0) or 0
+            }
+        }
+        
+        # Security Validation
+        sv = results['improvements']['security_validation']
+        graph_data['security_validation'] = {
+            'zkp': {
+                'baseline': results['baseline']['security_validation'].get('zkp_success_rate', 0),
+                'current': results['current']['security_validation'].get('zkp_success_rate', 0),
+                'improvement': sv.get('zkp_success_rate_improvement', 0)
+            },
+            'tee': {
+                'baseline': results['baseline']['security_validation'].get('tee_success_rate', 0),
+                'current': results['current']['security_validation'].get('tee_success_rate', 0),
+                'improvement': sv.get('tee_success_rate_improvement', 0)
+            },
+            'smpc': {
+                'baseline': results['baseline']['security_validation'].get('smpc_success_rate', 0),
+                'current': results['current']['security_validation'].get('smpc_success_rate', 0),
+                'improvement': sv.get('smpc_success_rate_improvement', 0)
+            },
+            'overall': {
+                'baseline': results['baseline']['security_validation'].get('overall_success_rate', 0),
+                'current': results['current']['security_validation'].get('overall_success_rate', 0),
+                'improvement': sv.get('overall_success_rate_improvement', 0)
+            }
+        }
+        
+        # System Throughput
+        st = results['improvements']['system_throughput']
+        graph_data['system_throughput'] = {
+            'contracts_per_day': {
+                'baseline': results['baseline']['system_throughput'].get('contracts_per_day', 0),
+                'current': results['current']['system_throughput'].get('contracts_per_day', 0),
+                'improvement': st.get('contracts_per_day_improvement', 0)
+            },
+            'requests_per_day': {
+                'baseline': results['baseline']['system_throughput'].get('requests_per_day', 0),
+                'current': results['current']['system_throughput'].get('requests_per_day', 0),
+                'improvement': st.get('requests_per_day_improvement', 0)
+            }
+        }
+        
+        # Attestation Efficiency
+        ae = results['improvements']['attestation_efficiency']
+        graph_data['attestation_efficiency'] = {
+            'attestation_rate': {
+                'baseline': results['baseline']['attestation_efficiency'].get('attestation_rate', 0),
+                'current': results['current']['attestation_efficiency'].get('attestation_rate', 0),
+                'improvement': ae.get('attestation_rate_improvement', 0)
+            },
+            'attestation_time': {
+                'baseline': results['baseline']['attestation_efficiency'].get('avg_attestation_time_minutes', 0) or 0,
+                'current': results['current']['attestation_efficiency'].get('avg_attestation_time_minutes', 0) or 0,
+                'reduction': ae.get('attestation_time_reduction', 0) or 0
+            }
+        }
+    else:
+        # Current metrics only (no baseline)
+        current = results
+        graph_data['request_processing'] = {
+            'approval_rate': current['request_processing'].get('approval_rate', 0),
+            'processing_time': current['request_processing'].get('avg_processing_time_hours', 0) or 0
+        }
+        graph_data['security_validation'] = {
+            'zkp': current['security_validation'].get('zkp_success_rate', 0),
+            'tee': current['security_validation'].get('tee_success_rate', 0),
+            'smpc': current['security_validation'].get('smpc_success_rate', 0),
+            'overall': current['security_validation'].get('overall_success_rate', 0)
+        }
+        graph_data['system_throughput'] = {
+            'contracts_per_day': current['system_throughput'].get('contracts_per_day', 0),
+            'requests_per_day': current['system_throughput'].get('requests_per_day', 0)
+        }
+        graph_data['attestation_efficiency'] = {
+            'attestation_rate': current['attestation_efficiency'].get('attestation_rate', 0),
+            'attestation_time': current['attestation_efficiency'].get('avg_attestation_time_minutes', 0) or 0
+        }
+    
+    return graph_data

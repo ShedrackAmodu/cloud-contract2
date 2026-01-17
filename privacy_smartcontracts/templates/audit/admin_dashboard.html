@@ -314,6 +314,25 @@
         </div>
     </div>
 
+    <!-- Fitness Margin Report -->
+    <div class="data-table" style="background: linear-gradient(135deg, var(--light-purple) 0%, var(--light-blue) 100%); border: 2px solid var(--accent-purple);">
+        <h2 class="section-title">📈 Fitness Margin Improvements Report</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+            Generate comprehensive performance improvement reports with visual graphs and comparisons.
+        </p>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <a href="{% url 'audit:fitness_margin_report' %}" class="btn" style="background: var(--header-gradient);">
+                📊 Generate Current Report
+            </a>
+            <a href="{% url 'audit:fitness_margin_report' %}?baseline=baseline_metrics.json" class="btn btn-secondary">
+                📈 Compare with Baseline
+            </a>
+        </div>
+        <div style="margin-top: 1rem; padding: 1rem; background: rgba(255, 255, 255, 0.5); border-radius: 8px;">
+            <strong>Note:</strong> To compare with baseline, first save a baseline report, then use the comparison link with the baseline file path.
+        </div>
+    </div>
+
     <!-- Recent Audit Events -->
     <div class="data-table">
         <h2 class="section-title">📊 Recent System Activity</h2>
@@ -350,4 +369,5 @@
 </div>
 
 {% endblock %}
+
 

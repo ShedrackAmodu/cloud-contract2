@@ -1,0 +1,724 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<style>
+    .report-header {
+        background: linear-gradient(135deg, var(--background-body) 0%, var(--light-blue) 100%);
+        border-radius: 16px;
+        padding: 3rem 2rem;
+        margin-bottom: 3rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .report-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--header-gradient);
+    }
+
+    .report-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .chart-container {
+        background: var(--background-light);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .chart-title {
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-primary);
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 0.5rem;
+    }
+
+    .chart-wrapper {
+        position: relative;
+        height: 400px;
+        margin-bottom: 1rem;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .metric-card {
+        background: var(--background-light);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border-left: 4px solid var(--primary-blue);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .metric-label {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-blue);
+    }
+
+    .metric-improvement {
+        font-size: 0.85rem;
+        color: var(--success-color);
+        margin-top: 0.5rem;
+    }
+
+    .metric-improvement.negative {
+        color: var(--error-color);
+    }
+
+    .comparison-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+
+    .comparison-table th,
+    .comparison-table td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .comparison-table th {
+        background: var(--header-gradient);
+        color: white;
+        font-weight: 600;
+    }
+
+    .improvement-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .improvement-badge.positive {
+        background: #D1FAE5;
+        color: #065F46;
+    }
+
+    .improvement-badge.negative {
+        background: #FEE2E2;
+        color: #991B1B;
+    }
+
+    @media print {
+        .report-actions {
+            display: none;
+        }
+        .chart-container {
+            page-break-inside: avoid;
+        }
+    }
+</style>
+
+<div class="report-header">
+    <h1>📊 Fitness Margin Improvements Report</h1>
+    <p style="color: var(--text-secondary); margin-top: 1rem;">
+        {% if has_baseline %}
+            Comparison Report: Baseline vs Current Performance
+        {% else %}
+            Current System Metrics (Use as Baseline)
+        {% endif %}
+    </p>
+</div>
+
+<div class="report-actions">
+    <button onclick="window.print()" class="btn">🖨️ Print Report</button>
+    <button onclick="exportToPDF()" class="btn btn-secondary">📄 Export as PDF</button>
+    <button onclick="downloadCharts()" class="btn btn-secondary">📥 Download Charts</button>
+    <button onclick="saveAsBaseline()" class="btn btn-secondary">💾 Save as Baseline</button>
+    <a href="{% url 'audit:admin_dashboard' %}" class="btn btn-secondary">← Back to Dashboard</a>
+</div>
+
+<!-- Baseline Upload Form -->
+<div class="chart-container" style="margin-bottom: 2rem;">
+    <h3 style="margin-bottom: 1rem;">Compare with Baseline</h3>
+    <form method="get" style="display: flex; gap: 1rem; align-items: end;">
+        <div style="flex: 1;">
+            <label for="baseline_file" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Baseline File Path:</label>
+            <input type="text" id="baseline_file" name="baseline" value="{{ baseline_file|default:'' }}" 
+                   placeholder="e.g., baseline_metrics.json" 
+                   style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: 8px;">
+        </div>
+        <button type="submit" class="btn">Compare</button>
+        <a href="{% url 'audit:fitness_margin_report' %}" class="btn btn-secondary">Clear</a>
+    </form>
+</div>
+
+{% if has_baseline %}
+<!-- Improvement Summary -->
+<div class="metrics-grid">
+    <div class="metric-card">
+        <div class="metric-label">Approval Rate Improvement</div>
+        <div class="metric-value">
+            {{ results.improvements.request_processing.approval_rate_improvement|floatformat:2 }}%
+        </div>
+        <div class="metric-improvement {% if results.improvements.request_processing.approval_rate_improvement < 0 %}negative{% endif %}">
+            Baseline: {{ results.baseline.request_processing.approval_rate|floatformat:2 }}% → 
+            Current: {{ results.current.request_processing.approval_rate|floatformat:2 }}%
+        </div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-label">Processing Time Reduction</div>
+        <div class="metric-value">
+            {% if results.improvements.request_processing.processing_time_reduction %}
+                {{ results.improvements.request_processing.processing_time_reduction|floatformat:2 }}s
+            {% else %}
+                N/A
+            {% endif %}
+        </div>
+        <div class="metric-improvement">
+            {% if results.improvements.request_processing.processing_time_reduction_percent %}
+                {{ results.improvements.request_processing.processing_time_reduction_percent|floatformat:2 }}% reduction
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-label">Overall Security Success Rate</div>
+        <div class="metric-value">
+            {{ results.improvements.security_validation.overall_success_rate_improvement|floatformat:2 }}%
+        </div>
+        <div class="metric-improvement">
+            Baseline: {{ results.baseline.security_validation.overall_success_rate|floatformat:2 }}% → 
+            Current: {{ results.current.security_validation.overall_success_rate|floatformat:2 }}%
+        </div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-label">System Throughput Improvement</div>
+        <div class="metric-value">
+            {{ results.improvements.system_throughput.contracts_per_day_improvement|floatformat:2 }}
+        </div>
+        <div class="metric-improvement">
+            {{ results.improvements.system_throughput.contracts_per_day_improvement_percent|floatformat:2 }}% increase
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Request Processing Chart -->
+<div class="chart-container">
+    <h2 class="chart-title">📈 Request Processing Efficiency</h2>
+    <div class="chart-wrapper">
+        <canvas id="requestProcessingChart"></canvas>
+    </div>
+    {% if has_baseline %}
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>Baseline</th>
+                <th>Current</th>
+                <th>Improvement</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Approval Rate</td>
+                <td>{{ results.baseline.request_processing.approval_rate|floatformat:2 }}%</td>
+                <td>{{ results.current.request_processing.approval_rate|floatformat:2 }}%</td>
+                <td>
+                    <span class="improvement-badge {% if results.improvements.request_processing.approval_rate_improvement >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ results.improvements.request_processing.approval_rate_improvement|floatformat:2 }}%
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td>Processing Rate</td>
+                <td>{{ results.baseline.request_processing.processing_rate|floatformat:2 }}%</td>
+                <td>{{ results.current.request_processing.processing_rate|floatformat:2 }}%</td>
+                <td>
+                    <span class="improvement-badge {% if results.improvements.request_processing.processing_rate_improvement >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ results.improvements.request_processing.processing_rate_improvement|floatformat:2 }}%
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td>Avg Processing Time</td>
+                <td>{{ results.baseline.request_processing.avg_processing_time_hours|floatformat:2 }} hours</td>
+                <td>{{ results.current.request_processing.avg_processing_time_hours|floatformat:2 }} hours</td>
+                <td>
+                    {% if results.improvements.request_processing.processing_time_reduction %}
+                        <span class="improvement-badge positive">
+                            -{{ results.improvements.request_processing.processing_time_reduction|floatformat:2 }}s
+                        </span>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+<!-- Security Validation Chart -->
+<div class="chart-container">
+    <h2 class="chart-title">🔒 Security Validation Success Rates</h2>
+    <div class="chart-wrapper">
+        <canvas id="securityValidationChart"></canvas>
+    </div>
+    {% if has_baseline %}
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Security Layer</th>
+                <th>Baseline</th>
+                <th>Current</th>
+                <th>Improvement</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>ZKP Success Rate</td>
+                <td>{{ results.baseline.security_validation.zkp_success_rate|floatformat:2 }}%</td>
+                <td>{{ results.current.security_validation.zkp_success_rate|floatformat:2 }}%</td>
+                <td>
+                    <span class="improvement-badge {% if results.improvements.security_validation.zkp_success_rate_improvement >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ results.improvements.security_validation.zkp_success_rate_improvement|floatformat:2 }}%
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td>TEE Success Rate</td>
+                <td>{{ results.baseline.security_validation.tee_success_rate|floatformat:2 }}%</td>
+                <td>{{ results.current.security_validation.tee_success_rate|floatformat:2 }}%</td>
+                <td>
+                    <span class="improvement-badge {% if results.improvements.security_validation.tee_success_rate_improvement >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ results.improvements.security_validation.tee_success_rate_improvement|floatformat:2 }}%
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td>SMPC Success Rate</td>
+                <td>{{ results.baseline.security_validation.smpc_success_rate|floatformat:2 }}%</td>
+                <td>{{ results.current.security_validation.smpc_success_rate|floatformat:2 }}%</td>
+                <td>
+                    <span class="improvement-badge {% if results.improvements.security_validation.smpc_success_rate_improvement >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ results.improvements.security_validation.smpc_success_rate_improvement|floatformat:2 }}%
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td>Overall Success Rate</td>
+                <td>{{ results.baseline.security_validation.overall_success_rate|floatformat:2 }}%</td>
+                <td>{{ results.current.security_validation.overall_success_rate|floatformat:2 }}%</td>
+                <td>
+                    <span class="improvement-badge {% if results.improvements.security_validation.overall_success_rate_improvement >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ results.improvements.security_validation.overall_success_rate_improvement|floatformat:2 }}%
+                    </span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+<!-- System Throughput Chart -->
+<div class="chart-container">
+    <h2 class="chart-title">⚡ System Throughput</h2>
+    <div class="chart-wrapper">
+        <canvas id="systemThroughputChart"></canvas>
+    </div>
+    {% if has_baseline %}
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>Baseline</th>
+                <th>Current</th>
+                <th>Improvement</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Contracts Per Day</td>
+                <td>{{ results.baseline.system_throughput.contracts_per_day|floatformat:2 }}</td>
+                <td>{{ results.current.system_throughput.contracts_per_day|floatformat:2 }}</td>
+                <td>
+                    <span class="improvement-badge {% if results.improvements.system_throughput.contracts_per_day_improvement >= 0 %}positive{% else %}negative{% endif %}">
+                        +{{ results.improvements.system_throughput.contracts_per_day_improvement|floatformat:2 }}
+                        ({{ results.improvements.system_throughput.contracts_per_day_improvement_percent|floatformat:2 }}%)
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td>Requests Per Day</td>
+                <td>{{ results.baseline.system_throughput.requests_per_day|floatformat:2 }}</td>
+                <td>{{ results.current.system_throughput.requests_per_day|floatformat:2 }}</td>
+                <td>
+                    <span class="improvement-badge {% if results.improvements.system_throughput.requests_per_day_improvement >= 0 %}positive{% else %}negative{% endif %}">
+                        +{{ results.improvements.system_throughput.requests_per_day_improvement|floatformat:2 }}
+                        ({{ results.improvements.system_throughput.requests_per_day_improvement_percent|floatformat:2 }}%)
+                    </span>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+<!-- Attestation Efficiency Chart -->
+<div class="chart-container">
+    <h2 class="chart-title">✅ Attestation Efficiency</h2>
+    <div class="chart-wrapper">
+        <canvas id="attestationEfficiencyChart"></canvas>
+    </div>
+    {% if has_baseline %}
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>Baseline</th>
+                <th>Current</th>
+                <th>Improvement</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Attestation Rate</td>
+                <td>{{ results.baseline.attestation_efficiency.attestation_rate|floatformat:2 }}%</td>
+                <td>{{ results.current.attestation_efficiency.attestation_rate|floatformat:2 }}%</td>
+                <td>
+                    <span class="improvement-badge {% if results.improvements.attestation_efficiency.attestation_rate_improvement >= 0 %}positive{% else %}negative{% endif %}">
+                        {{ results.improvements.attestation_efficiency.attestation_rate_improvement|floatformat:2 }}%
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td>Avg Attestation Time</td>
+                <td>{{ results.baseline.attestation_efficiency.avg_attestation_time_minutes|floatformat:2 }} min</td>
+                <td>{{ results.current.attestation_efficiency.avg_attestation_time_minutes|floatformat:2 }} min</td>
+                <td>
+                    {% if results.improvements.attestation_efficiency.attestation_time_reduction %}
+                        <span class="improvement-badge positive">
+                            -{{ results.improvements.attestation_efficiency.attestation_time_reduction|floatformat:2 }}s
+                            ({{ results.improvements.attestation_efficiency.attestation_time_reduction_percent|floatformat:2 }}%)
+                        </span>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+
+<script>
+    const graphData = JSON.parse('{{ graph_data|escapejs }}');
+    const hasBaseline = {{ has_baseline|yesno:"true,false" }};
+
+    // Chart configuration
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top',
+            },
+            title: {
+                display: false
+            },
+            tooltip: {
+                enabled: true
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return value + '%';
+                    }
+                }
+            }
+        }
+    };
+
+    // Request Processing Chart
+    const rpCtx = document.getElementById('requestProcessingChart').getContext('2d');
+    let rpData;
+    if (hasBaseline) {
+        rpData = {
+            labels: ['Approval Rate', 'Processing Rate'],
+            datasets: [{
+                label: 'Baseline',
+                data: [
+                    graphData.request_processing.approval_rate.baseline,
+                    graphData.request_processing.processing_time.baseline
+                ],
+                backgroundColor: 'rgba(107, 70, 193, 0.5)',
+                borderColor: 'rgba(107, 70, 193, 1)',
+                borderWidth: 2
+            }, {
+                label: 'Current',
+                data: [
+                    graphData.request_processing.approval_rate.current,
+                    graphData.request_processing.processing_time.current
+                ],
+                backgroundColor: 'rgba(10, 102, 194, 0.5)',
+                borderColor: 'rgba(10, 102, 194, 1)',
+                borderWidth: 2
+            }]
+        };
+    } else {
+        rpData = {
+            labels: ['Approval Rate', 'Processing Time (hours)'],
+            datasets: [{
+                label: 'Current Metrics',
+                data: [
+                    graphData.request_processing.approval_rate,
+                    graphData.request_processing.processing_time
+                ],
+                backgroundColor: 'rgba(10, 102, 194, 0.5)',
+                borderColor: 'rgba(10, 102, 194, 1)',
+                borderWidth: 2
+            }]
+        };
+    }
+    new Chart(rpCtx, {
+        type: 'bar',
+        data: rpData,
+        options: chartOptions
+    });
+
+    // Security Validation Chart
+    const svCtx = document.getElementById('securityValidationChart').getContext('2d');
+    let svData;
+    if (hasBaseline) {
+        svData = {
+            labels: ['ZKP', 'TEE', 'SMPC', 'Overall'],
+            datasets: [{
+                label: 'Baseline',
+                data: [
+                    graphData.security_validation.zkp.baseline,
+                    graphData.security_validation.tee.baseline,
+                    graphData.security_validation.smpc.baseline,
+                    graphData.security_validation.overall.baseline
+                ],
+                backgroundColor: 'rgba(107, 70, 193, 0.5)',
+                borderColor: 'rgba(107, 70, 193, 1)',
+                borderWidth: 2
+            }, {
+                label: 'Current',
+                data: [
+                    graphData.security_validation.zkp.current,
+                    graphData.security_validation.tee.current,
+                    graphData.security_validation.smpc.current,
+                    graphData.security_validation.overall.current
+                ],
+                backgroundColor: 'rgba(10, 102, 194, 0.5)',
+                borderColor: 'rgba(10, 102, 194, 1)',
+                borderWidth: 2
+            }]
+        };
+    } else {
+        svData = {
+            labels: ['ZKP', 'TEE', 'SMPC', 'Overall'],
+            datasets: [{
+                label: 'Success Rate (%)',
+                data: [
+                    graphData.security_validation.zkp,
+                    graphData.security_validation.tee,
+                    graphData.security_validation.smpc,
+                    graphData.security_validation.overall
+                ],
+                backgroundColor: [
+                    'rgba(56, 161, 105, 0.5)',
+                    'rgba(10, 102, 194, 0.5)',
+                    'rgba(107, 70, 193, 0.5)',
+                    'rgba(221, 107, 32, 0.5)'
+                ],
+                borderColor: [
+                    'rgba(56, 161, 105, 1)',
+                    'rgba(10, 102, 194, 1)',
+                    'rgba(107, 70, 193, 1)',
+                    'rgba(221, 107, 32, 1)'
+                ],
+                borderWidth: 2
+            }]
+        };
+    }
+    new Chart(svCtx, {
+        type: 'bar',
+        data: svData,
+        options: chartOptions
+    });
+
+    // System Throughput Chart
+    const stCtx = document.getElementById('systemThroughputChart').getContext('2d');
+    let stData;
+    if (hasBaseline) {
+        stData = {
+            labels: ['Contracts/Day', 'Requests/Day'],
+            datasets: [{
+                label: 'Baseline',
+                data: [
+                    graphData.system_throughput.contracts_per_day.baseline,
+                    graphData.system_throughput.requests_per_day.baseline
+                ],
+                backgroundColor: 'rgba(107, 70, 193, 0.5)',
+                borderColor: 'rgba(107, 70, 193, 1)',
+                borderWidth: 2
+            }, {
+                label: 'Current',
+                data: [
+                    graphData.system_throughput.contracts_per_day.current,
+                    graphData.system_throughput.requests_per_day.current
+                ],
+                backgroundColor: 'rgba(10, 102, 194, 0.5)',
+                borderColor: 'rgba(10, 102, 194, 1)',
+                borderWidth: 2
+            }]
+        };
+    } else {
+        stData = {
+            labels: ['Contracts/Day', 'Requests/Day'],
+            datasets: [{
+                label: 'Throughput',
+                data: [
+                    graphData.system_throughput.contracts_per_day,
+                    graphData.system_throughput.requests_per_day
+                ],
+                backgroundColor: 'rgba(10, 102, 194, 0.5)',
+                borderColor: 'rgba(10, 102, 194, 1)',
+                borderWidth: 2
+            }]
+        };
+    }
+    new Chart(stCtx, {
+        type: 'bar',
+        data: stData,
+        options: {
+            ...chartOptions,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Attestation Efficiency Chart
+    const aeCtx = document.getElementById('attestationEfficiencyChart').getContext('2d');
+    let aeData;
+    if (hasBaseline) {
+        aeData = {
+            labels: ['Attestation Rate', 'Attestation Time (min)'],
+            datasets: [{
+                label: 'Baseline',
+                data: [
+                    graphData.attestation_efficiency.attestation_rate.baseline,
+                    graphData.attestation_efficiency.attestation_time.baseline
+                ],
+                backgroundColor: 'rgba(107, 70, 193, 0.5)',
+                borderColor: 'rgba(107, 70, 193, 1)',
+                borderWidth: 2
+            }, {
+                label: 'Current',
+                data: [
+                    graphData.attestation_efficiency.attestation_rate.current,
+                    graphData.attestation_efficiency.attestation_time.current
+                ],
+                backgroundColor: 'rgba(10, 102, 194, 0.5)',
+                borderColor: 'rgba(10, 102, 194, 1)',
+                borderWidth: 2
+            }]
+        };
+    } else {
+        aeData = {
+            labels: ['Attestation Rate', 'Attestation Time (min)'],
+            datasets: [{
+                label: 'Current Metrics',
+                data: [
+                    graphData.attestation_efficiency.attestation_rate,
+                    graphData.attestation_efficiency.attestation_time
+                ],
+                backgroundColor: 'rgba(10, 102, 194, 0.5)',
+                borderColor: 'rgba(10, 102, 194, 1)',
+                borderWidth: 2
+            }]
+        };
+    }
+    new Chart(aeCtx, {
+        type: 'bar',
+        data: aeData,
+        options: chartOptions
+    });
+
+    // Export functions
+    function exportToPDF() {
+        window.print();
+    }
+
+    function downloadCharts() {
+        const charts = ['requestProcessingChart', 'securityValidationChart', 'systemThroughputChart', 'attestationEfficiencyChart'];
+        const chartNames = ['Request Processing', 'Security Validation', 'System Throughput', 'Attestation Efficiency'];
+        charts.forEach((chartId, index) => {
+            const canvas = document.getElementById(chartId);
+            const url = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `fitness_margin_${chartNames[index].toLowerCase().replace(' ', '_')}.png`;
+            link.href = url;
+            link.click();
+        });
+        alert('All charts downloaded!');
+    }
+
+    function saveAsBaseline() {
+        const data = JSON.parse('{{ results_json|escapejs }}');
+        const dataStr = JSON.stringify(data, null, 2);
+        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'baseline_metrics_' + new Date().toISOString().split('T')[0] + '.json';
+        link.click();
+        URL.revokeObjectURL(url);
+        alert('Baseline saved! Use this file for future comparisons by entering the filename in the baseline comparison form above.');
+    }
+</script>
+
+{% endblock %}
+
