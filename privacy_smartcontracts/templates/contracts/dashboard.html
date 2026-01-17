@@ -405,29 +405,114 @@
         }
     }
 
-    /* --- Mobile Responsive --- */
-    @media (max-width: 768px) {
+    /* --- Comprehensive Mobile Responsive --- */
+    
+    /* Tablets (768px - 1023px) */
+    @media (min-width: 768px) and (max-width: 1023px) {
         .dashboard-header {
-            padding: 2rem 1.5rem;
+            padding: 2.5rem 2rem;
+        }
+
+        .contracts-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    /* Mobile (max-width: 767px) */
+    @media (max-width: 767px) {
+        .dashboard-header {
+            padding: 1.5rem 1rem;
         }
 
         .dashboard-title {
-            font-size: 2rem;
+            font-size: 1.75rem;
+        }
+
+        .dashboard-subtitle {
+            font-size: 1rem;
         }
 
         .contracts-grid {
             grid-template-columns: 1fr;
-            gap: 1.5rem;
+            gap: 1.25rem;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
         }
 
         .stat-number {
             font-size: 2rem;
         }
 
+        .stat-label {
+            font-size: 0.875rem;
+        }
+
+        .contract-card {
+            margin-bottom: 1rem;
+        }
+
+        .contract-header {
+            padding: 1.25rem 1rem;
+        }
+
+        .contract-title {
+            font-size: 1.15rem;
+        }
+
+        .contract-body {
+            padding: 1.25rem;
+        }
+
         .contract-meta {
             flex-direction: column;
             gap: 0.5rem;
             align-items: flex-start;
+        }
+
+        .contract-actions {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .contract-action-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .status-badges {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+
+    /* Small Mobile (max-width: 480px) */
+    @media (max-width: 480px) {
+        .dashboard-header {
+            padding: 1.25rem 0.75rem;
+        }
+
+        .dashboard-title {
+            font-size: 1.5rem;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .stat-card {
+            padding: 1.5rem 1rem;
+        }
+
+        .stat-number {
+            font-size: 1.75rem;
         }
     }
 </style>

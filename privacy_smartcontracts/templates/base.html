@@ -633,18 +633,76 @@
       transform: translateY(-4px);
     }
 
-    /* Responsive Design */
-    @media (max-width: 1200px) {
+    /* Comprehensive Responsive Design */
+    
+    /* Large Laptops and Desktops (1400px+) */
+    @media (min-width: 1400px) {
       .container {
-        max-width: 100%;
-        margin: 2rem 1.5rem;
-        padding: 2.5rem;
+        max-width: 1320px;
+        margin: 3rem auto;
+        padding: 3.5rem;
       }
     }
 
-    @media (max-width: 768px) {
+    /* Standard Laptops (1024px - 1399px) */
+    @media (min-width: 1024px) and (max-width: 1399px) {
+      .container {
+        max-width: 1200px;
+        margin: 2.5rem auto;
+        padding: 3rem;
+      }
+      
+      /* Improve grid layouts for laptops */
+      [class*="grid"] {
+        gap: 1.5rem;
+      }
+    }
+
+    /* Tablets and Small Laptops (768px - 1023px) */
+    @media (min-width: 768px) and (max-width: 1023px) {
       body {
-        padding-top: 80px;
+        padding-top: 90px;
+      }
+
+      .container {
+        max-width: 100%;
+        margin: 1.5rem 1rem;
+        padding: 2rem;
+      }
+
+      /* Adjust grid columns for tablets */
+      [class*="grid"] {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem;
+      }
+
+      /* Better button sizing for tablets */
+      button, .btn {
+        padding: 0.8rem 1.6rem;
+        font-size: 1rem;
+        min-width: 120px;
+      }
+
+      /* Improve table display on tablets */
+      table {
+        font-size: 0.9rem;
+      }
+
+      th, td {
+        padding: 0.875rem 0.75rem;
+      }
+
+      /* Better card layouts */
+      [class*="card"] {
+        padding: 1.5rem;
+      }
+    }
+
+    /* Mobile Devices (481px - 767px) */
+    @media (max-width: 767px) {
+      body {
+        padding-top: 75px;
+        font-size: 16px;
       }
 
       header {
@@ -665,6 +723,8 @@
         order: 2;
         border: 2px solid var(--border-color);
         padding: 0.4rem 0.6rem;
+        min-width: 44px;
+        min-height: 44px;
       }
 
       .navbar-toggler:focus {
@@ -685,10 +745,13 @@
       }
 
       .navbar-nav .nav-link {
-        padding: 0.875rem 1rem;
+        padding: 1rem 1.25rem;
         border-radius: 8px;
         margin: 0.25rem 0;
         text-align: left;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
       }
 
       .navbar-nav .nav-link:hover {
@@ -699,39 +762,54 @@
       .header-actions {
         order: 4;
         width: 100%;
-        justify-content: center;
-        flex-wrap: wrap;
+        justify-content: stretch;
+        flex-direction: column;
         margin-top: 1rem;
         padding-top: 1rem;
         border-top: 1px solid var(--border-color);
         gap: 0.75rem;
       }
 
+      .header-actions .btn,
+      .header-actions button {
+        width: 100%;
+        margin: 0;
+      }
+
       .container {
-        margin: 1rem 0.75rem;
-        padding: 1.5rem;
+        margin: 0.75rem 0.5rem;
+        padding: 1.25rem;
         border-radius: 12px;
       }
 
       h1 {
-        font-size: 2rem;
+        font-size: 1.875rem;
         line-height: 1.2;
+        margin-bottom: 1rem;
       }
 
       h2 {
-        font-size: 1.75rem;
+        font-size: 1.625rem;
         line-height: 1.3;
+        margin-bottom: 0.875rem;
       }
 
       h3 {
-        font-size: 1.5rem;
+        font-size: 1.375rem;
+        margin-bottom: 0.75rem;
+      }
+
+      h4 {
+        font-size: 1.125rem;
       }
 
       button, .btn {
-        padding: 0.75rem 1.5rem;
+        padding: 0.875rem 1.5rem;
         font-size: 1rem;
         width: 100%;
         max-width: 100%;
+        min-height: 44px;
+        touch-action: manipulation;
       }
 
       .form-group {
@@ -744,26 +822,105 @@
       form input[type="password"],
       form textarea,
       form select {
-        padding: 0.875rem;
-        font-size: 1rem;
+        padding: 1rem;
+        font-size: 16px; /* Prevents zoom on iOS */
+        min-height: 44px;
+        border-radius: 10px;
       }
 
+      /* Single column grids on mobile */
+      [class*="grid"] {
+        grid-template-columns: 1fr !important;
+        gap: 1rem;
+      }
+
+      /* Stack stats cards */
+      [class*="stats"] {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+
+      /* Better table handling */
       table {
         font-size: 0.875rem;
         display: block;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+      }
+
+      thead {
+        display: none;
+      }
+
+      tbody {
+        display: block;
+        width: 100%;
+      }
+
+      tr {
+        display: block;
+        margin-bottom: 1rem;
+        background: var(--background-light);
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      }
+
+      td {
+        display: block;
+        text-align: right;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border-color);
+        position: relative;
+        padding-left: 50%;
+      }
+
+      td:last-child {
+        border-bottom: none;
+      }
+
+      td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0;
+        width: 45%;
+        text-align: left;
+        font-weight: 600;
+        color: var(--text-secondary);
       }
 
       th, td {
-        padding: 0.75rem 0.5rem;
-        white-space: nowrap;
+        white-space: normal;
+      }
+
+      /* Improve card layouts */
+      [class*="card"] {
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+      }
+
+      /* Better spacing for lists */
+      li {
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+      }
+
+      /* Improve messages */
+      .messages {
+        padding: 1rem;
+        font-size: 0.95rem;
+        margin-bottom: 1.25rem;
       }
     }
 
+    /* Small Mobile Devices (320px - 480px) */
     @media (max-width: 480px) {
       body {
         padding-top: 70px;
+        font-size: 15px;
       }
 
       header {
@@ -776,27 +933,84 @@
 
       .container {
         margin: 0.5rem;
-        padding: 1.25rem;
+        padding: 1rem;
       }
 
       h1 {
-        font-size: 1.75rem;
+        font-size: 1.625rem;
       }
 
       h2 {
         font-size: 1.5rem;
       }
 
+      h3 {
+        font-size: 1.25rem;
+      }
+
       button, .btn {
-        padding: 0.625rem 1.25rem;
+        padding: 0.75rem 1.25rem;
         font-size: 0.95rem;
+      }
+
+      /* Smaller stats grid */
+      [class*="stats"] {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+      }
+
+      /* Compact cards */
+      [class*="card"] {
+        padding: 1rem;
+      }
+
+      /* Better form inputs */
+      form input[type="text"],
+      form input[type="file"],
+      form input[type="email"],
+      form input[type="password"],
+      form textarea,
+      form select {
+        padding: 0.875rem;
+        font-size: 16px;
       }
     }
 
-    @media (min-width: 769px) and (max-width: 1024px) {
+    /* Landscape Mobile (max-height: 600px) */
+    @media (max-width: 767px) and (max-height: 600px) {
+      body {
+        padding-top: 65px;
+      }
+
       .container {
-        margin: 2rem 1.5rem;
-        padding: 2.5rem;
+        padding: 1rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      h2 {
+        font-size: 1.375rem;
+      }
+    }
+
+    /* Touch device optimizations */
+    @media (hover: none) and (pointer: coarse) {
+      /* Larger touch targets */
+      a, button, .btn {
+        min-height: 44px;
+        min-width: 44px;
+      }
+
+      /* Remove hover effects on touch devices */
+      *:hover {
+        transform: none !important;
+      }
+
+      /* Better spacing for touch */
+      .navbar-nav .nav-link {
+        padding: 1.125rem 1.25rem;
       }
     }
 

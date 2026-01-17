@@ -506,20 +506,81 @@ pre {
   font-family: 'Fira Code', 'Monaco', 'Menlo', monospace;
 }
 
-/* Enhanced Responsive Design */
-@media (max-width: 1200px) {
+/* Comprehensive Enhanced Responsive Design */
+
+/* Large Desktops (1400px+) */
+@media (min-width: 1400px) {
   .container {
-    max-width: 100%;
-    margin: 2rem 1.5rem;
-    padding: 2.5rem;
+    max-width: 1320px;
+    margin: 3rem auto;
+    padding: 3.5rem;
   }
 }
 
-@media (max-width: 768px) {
+/* Standard Laptops (1024px - 1399px) */
+@media (min-width: 1024px) and (max-width: 1399px) {
+  .container {
+    max-width: 1200px;
+    margin: 2.5rem auto;
+    padding: 3rem;
+  }
+
+  /* Optimize grid layouts */
+  [class*="grid"] {
+    gap: 1.5rem;
+  }
+}
+
+/* Tablets and Small Laptops (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .container {
+    margin: 1.5rem 1rem;
+    padding: 2rem;
+    max-width: 100%;
+  }
+
+  /* Two-column grids for tablets */
+  [class*="grid"] {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
+  }
+
+  /* Better button sizing */
+  button, .btn {
+    padding: 0.8rem 1.6rem;
+    font-size: 1rem;
+    min-width: 120px;
+  }
+
+  /* Improve tables */
+  table {
+    font-size: 0.9rem;
+  }
+
+  th, td {
+    padding: 0.875rem 0.75rem;
+  }
+
+  /* Card adjustments */
+  [class*="card"] {
+    padding: 1.5rem;
+  }
+
+  h1 {
+    font-size: 2.25rem;
+  }
+
+  h2 {
+    font-size: 2rem;
+  }
+}
+
+/* Mobile Devices (481px - 767px) */
+@media (max-width: 767px) {
   header {
     flex-direction: column;
     align-items: stretch;
-    padding: 1rem 1.5rem;
+    padding: 0.75rem 1rem;
   }
 
   nav {
@@ -527,63 +588,115 @@ pre {
     width: 100%;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch;
   }
 
   nav a {
     margin: 0.5rem 0;
-    text-align: center;
+    text-align: left;
     width: 100%;
-    padding: 0.75rem 1rem;
+    padding: 1rem 1.25rem;
     border-radius: 8px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
   }
 
   header > div {
     margin-top: 1rem;
     width: 100%;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     gap: 0.75rem;
-    flex-wrap: wrap;
   }
 
   .container {
-    margin: 1rem 0.75rem;
-    padding: 1.5rem;
+    margin: 0.75rem 0.5rem;
+    padding: 1.25rem;
     border-radius: 12px;
   }
 
   h1 {
-    font-size: 2rem;
+    font-size: 1.875rem;
     line-height: 1.2;
   }
 
   h2 {
-    font-size: 1.75rem;
+    font-size: 1.625rem;
     line-height: 1.3;
   }
 
   h3 {
-    font-size: 1.5rem;
+    font-size: 1.375rem;
   }
 
   button, .btn {
-    padding: 0.75rem 1.5rem;
+    padding: 0.875rem 1.5rem;
     font-size: 1rem;
     width: 100%;
     max-width: 100%;
+    min-height: 44px;
   }
 
+  /* Single column grids */
+  [class*="grid"] {
+    grid-template-columns: 1fr !important;
+    gap: 1rem;
+  }
+
+  /* Two column stats */
+  [class*="stats"] {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  /* Mobile-friendly tables */
   table {
     font-size: 0.875rem;
     display: block;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    width: 100%;
   }
 
-  th, td {
-    padding: 0.75rem 0.5rem;
-    white-space: nowrap;
+  thead {
+    display: none;
+  }
+
+  tbody {
+    display: block;
+  }
+
+  tr {
+    display: block;
+    margin-bottom: 1rem;
+    background: var(--background-light);
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  td {
+    display: block;
+    text-align: right;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+    position: relative;
+    padding-left: 50%;
+  }
+
+  td:last-child {
+    border-bottom: none;
+  }
+
+  td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0;
+    width: 45%;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary);
   }
 
   .form-group {
@@ -596,39 +709,84 @@ pre {
   form input[type="password"],
   form textarea,
   form select {
-    padding: 0.875rem;
-    font-size: 1rem;
+    padding: 1rem;
+    font-size: 16px; /* Prevents zoom on iOS */
+    min-height: 44px;
+  }
+
+  /* Better card layouts */
+  [class*="card"] {
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  /* List improvements */
+  li {
+    padding: 1rem;
+    margin-bottom: 0.75rem;
   }
 }
 
+/* Small Mobile Devices (320px - 480px) */
 @media (max-width: 480px) {
   header {
-    padding: 0.75rem 1rem;
+    padding: 0.5rem 0.75rem;
   }
 
   .container {
     margin: 0.5rem;
-    padding: 1.25rem;
+    padding: 1rem;
   }
 
   h1 {
-    font-size: 1.75rem;
+    font-size: 1.625rem;
   }
 
   h2 {
     font-size: 1.5rem;
   }
 
+  h3 {
+    font-size: 1.25rem;
+  }
+
   button, .btn {
-    padding: 0.625rem 1.25rem;
+    padding: 0.75rem 1.25rem;
     font-size: 0.95rem;
+  }
+
+  /* Single column stats */
+  [class*="stats"] {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  /* Compact cards */
+  [class*="card"] {
+    padding: 1rem;
+  }
+
+  form input[type="text"],
+  form input[type="file"],
+  form input[type="email"],
+  form input[type="password"],
+  form textarea,
+  form select {
+    padding: 0.875rem;
+    font-size: 16px;
   }
 }
 
-@media (min-width: 769px) and (max-width: 1024px) {
-  .container {
-    margin: 2rem 1.5rem;
-    padding: 2.5rem;
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  a, button, .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Remove hover transforms on touch */
+  *:hover {
+    transform: none !important;
   }
 }
 
