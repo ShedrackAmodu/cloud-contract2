@@ -1,31 +1,240 @@
 {% extends 'base.html' %}
+{% load static %}
+
 {% block content %}
-<h2>Audit Events</h2>
-<table border="1">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Event Type</th>
-      <th>User</th>
-      <th>Details</th>
-      <th>Timestamp</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for event in events %}
-    <tr>
-      <td>{{ event.id }}</td>
-      <td>{{ event.event_type }}</td>
-      <td>{{ event.user|default:"System" }}</td>
-      <td>{{ event.details }}</td>
-      <td>{{ event.timestamp }}</td>
-    </tr>
-    {% empty %}
-    <tr>
-      <td colspan="5">No audit events yet.</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-<p><a href="{% url 'audit:export_audit' %}">Export to CSV</a></p>
+
+<style>
+    .audit-header {
+        background: linear-gradient(135deg, var(--background-body) 0%, var(--light-blue) 100%);
+        border-radius: 16px;
+        padding: 3rem 2rem;
+        margin-bottom: 3rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .audit-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--header-gradient);
+    }
+
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-box {
+        background: var(--background-light);
+        padding: 1.5rem;
+        border-radius: 12px;
+        text-align: center;
+        border-top: 4px solid var(--primary-blue);
+    }
+
+    .stat-box-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-blue);
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .filter-section {
+        background: var(--background-light);
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        align-items: end;
+    }
+
+    .filter-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+    }
+
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 2px solid var(--border-color);
+        border-radius: 8px;
+        font-size: 1rem;
+    }
+
+    .events-table {
+        background: var(--background-light);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        overflow-x: auto;
+    }
+
+    .event-type-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+
+    .event-type-request { background: var(--light-blue); color: var(--deep-blue); }
+    .event-type-attestation { background: var(--light-purple); color: var(--deep-purple); }
+    .event-type-validation { background: #D1FAE5; color: #065F46; }
+    .event-type-contract { background: #FEF3C7; color: #92400E; }
+
+    @media (max-width: 768px) {
+        .filter-form {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="audit-header">
+    <h1>System Audit Log</h1>
+    <p style="color: var(--text-secondary); margin-top: 1rem;">Complete transaction history and system activity</p>
+</div>
+
+<!-- Statistics -->
+<div class="stats-row">
+    <div class="stat-box">
+        <span class="stat-box-number">{{ total_events }}</span>
+        <span style="color: var(--text-secondary);">Total Events</span>
+    </div>
+    <div class="stat-box">
+        <span class="stat-box-number">{{ events_today }}</span>
+        <span style="color: var(--text-secondary);">Events Today</span>
+    </div>
+    <div class="stat-box">
+        <span class="stat-box-number">{{ events_this_week }}</span>
+        <span style="color: var(--text-secondary);">This Week</span>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-section">
+    <h3 style="margin-bottom: 1.5rem; color: var(--text-primary);">🔍 Filter Events</h3>
+    <form method="get" class="filter-form">
+        <div class="filter-group">
+            <label for="event_type">Event Type</label>
+            <input type="text" id="event_type" name="event_type" value="{{ event_type_filter }}" placeholder="e.g., request_created">
+        </div>
+        <div class="filter-group">
+            <label for="user">User Email</label>
+            <input type="text" id="user" name="user" value="{{ user_filter }}" placeholder="user@example.com">
+        </div>
+        <div class="filter-group">
+            <label for="date_from">From Date</label>
+            <input type="date" id="date_from" name="date_from" value="{{ date_from }}">
+        </div>
+        <div class="filter-group">
+            <label for="date_to">To Date</label>
+            <input type="date" id="date_to" name="date_to" value="{{ date_to }}">
+        </div>
+        <div class="filter-group">
+            <button type="submit" class="btn" style="width: 100%;">Apply Filters</button>
+        </div>
+        <div class="filter-group">
+            <a href="{% url 'audit:audit_list' %}" class="btn btn-secondary" style="width: 100%; text-align: center; display: block;">Clear Filters</a>
+        </div>
+    </form>
+</div>
+
+<!-- Event Type Breakdown -->
+{% if event_types %}
+<div class="filter-section">
+    <h3 style="margin-bottom: 1rem; color: var(--text-primary);">📊 Event Type Breakdown</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        {% for et in event_types %}
+        <div style="background: var(--background-body); padding: 1rem; border-radius: 8px; border-left: 4px solid var(--primary-blue);">
+            <strong style="color: var(--primary-blue);">{{ et.count }}</strong>
+            <div style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.25rem;">{{ et.event_type }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Events Table -->
+<div class="events-table">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <h3 style="margin: 0; color: var(--text-primary);">📋 All System Events</h3>
+        <a href="{% url 'audit:export_audit' %}" class="btn btn-secondary">Export CSV</a>
+    </div>
+    
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Event Type</th>
+                    <th>User</th>
+                    <th>Details</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in events %}
+                <tr>
+                    <td>#{{ event.id }}</td>
+                    <td>
+                        <span class="event-type-badge 
+                            {% if 'request' in event.event_type %}event-type-request
+                            {% elif 'attestation' in event.event_type %}event-type-attestation
+                            {% elif 'validation' in event.event_type %}event-type-validation
+                            {% elif 'contract' in event.event_type %}event-type-contract
+                            {% endif %}">
+                            {{ event.event_type }}
+                        </span>
+                    </td>
+                    <td>{{ event.user.email|default:"System" }}</td>
+                    <td style="max-width: 300px;">
+                        <details style="cursor: pointer;">
+                            <summary style="color: var(--text-secondary); font-size: 0.9rem;">View Details</summary>
+                            <pre style="margin-top: 0.5rem; padding: 0.5rem; background: var(--background-body); border-radius: 4px; font-size: 0.85rem; overflow-x: auto;">{{ event.details|safe }}</pre>
+                        </details>
+                    </td>
+                    <td>{{ event.timestamp|date:"M j, Y H:i:s" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                        No audit events found. {% if event_type_filter or user_filter %}Try adjusting your filters.{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if events|length >= 500 %}
+    <div style="margin-top: 1.5rem; padding: 1rem; background: var(--light-blue); border-radius: 8px; text-align: center; color: var(--deep-blue);">
+        <strong>Note:</strong> Showing the 500 most recent events. Use filters to narrow down results.
+    </div>
+    {% endif %}
+</div>
+
+<!-- Quick Links -->
+<div style="margin-top: 2rem; text-align: center;">
+    <a href="{% url 'audit:admin_dashboard' %}" class="btn">← Back to Admin Dashboard</a>
+</div>
+
 {% endblock %}

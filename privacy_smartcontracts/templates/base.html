@@ -853,7 +853,10 @@
             </li>
             {% if user.is_staff %}
               <li class="nav-item">
-                <a class="nav-link {% if 'audit' in request.path %}active{% endif %}" href="{% url 'audit:audit_list' %}">Audit</a>
+                <a class="nav-link {% if 'admin_dashboard' in request.path %}active{% endif %}" href="{% url 'audit:admin_dashboard' %}">Admin Dashboard</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link {% if 'audit' in request.path and 'dashboard' not in request.path %}active{% endif %}" href="{% url 'audit:audit_list' %}">Audit</a>
               </li>
               <li class="nav-item">
                 <a class="nav-link {% if 'oracle' in request.path %}active{% endif %}" href="{% url 'oracle:pending' %}">Oracle</a>

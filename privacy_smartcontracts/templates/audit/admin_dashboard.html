@@ -1,0 +1,353 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<style>
+    .admin-dashboard {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .dashboard-header {
+        background: linear-gradient(135deg, var(--background-body) 0%, var(--light-blue) 100%);
+        border-radius: 16px;
+        padding: 3rem 2rem;
+        margin-bottom: 3rem;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .dashboard-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--header-gradient);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+
+    .stat-card {
+        background: var(--background-light);
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        text-align: center;
+        border-top: 4px solid var(--primary-blue);
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--primary-blue);
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 1rem;
+        font-weight: 500;
+    }
+
+    .section-title {
+        font-size: 1.75rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-primary);
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 0.5rem;
+    }
+
+    .data-table {
+        background: var(--background-light);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    .security-breakdown {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .security-metric {
+        background: var(--light-purple);
+        padding: 1.5rem;
+        border-radius: 12px;
+        text-align: center;
+        border-left: 4px solid var(--accent-purple);
+    }
+
+    .security-metric-label {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .security-metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--accent-purple);
+    }
+
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .security-breakdown {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="admin-dashboard">
+    <div class="dashboard-header">
+        <h1>System Administration Dashboard</h1>
+        <p style="color: var(--text-secondary); margin-top: 1rem;">Complete overview of all system transactions and security metrics</p>
+    </div>
+
+    <!-- Statistics Overview -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <span class="stat-number">{{ total_contracts }}</span>
+            <span class="stat-label">Total Contracts</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number">{{ total_requests }}</span>
+            <span class="stat-label">Total Access Requests</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number">{{ total_validations }}</span>
+            <span class="stat-label">Secure Validations</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number">{{ total_attestations }}</span>
+            <span class="stat-label">Oracle Attestations</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number">{{ total_audit_events }}</span>
+            <span class="stat-label">Audit Events</span>
+        </div>
+    </div>
+
+    <!-- Security Layer Breakdown -->
+    <div class="data-table">
+        <h2 class="section-title">🔒 Security Layer Performance</h2>
+        <div class="security-breakdown">
+            <div class="security-metric">
+                <div class="security-metric-label">ZKP Verified</div>
+                <div class="security-metric-value">{{ zkp_verified }}</div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                    {{ security_stats.zkp_success_rate|floatformat:1 }}% success rate
+                </div>
+            </div>
+            <div class="security-metric">
+                <div class="security-metric-label">TEE Verified</div>
+                <div class="security-metric-value">{{ tee_verified }}</div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                    {{ security_stats.tee_success_rate|floatformat:1 }}% success rate
+                </div>
+            </div>
+            <div class="security-metric">
+                <div class="security-metric-label">SMPC Verified</div>
+                <div class="security-metric-value">{{ smpc_verified }}</div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                    {{ security_stats.smpc_success_rate|floatformat:1 }}% success rate
+                </div>
+            </div>
+            <div class="security-metric">
+                <div class="security-metric-label">Overall Verified</div>
+                <div class="security-metric-value">{{ overall_verified }}</div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                    {{ security_stats.overall_success_rate|floatformat:1 }}% success rate
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contracts Status -->
+    <div class="data-table">
+        <h2 class="section-title">📄 Contracts Overview</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+            <div>
+                <strong style="color: var(--primary-blue);">{{ active_contracts }}</strong> Active
+            </div>
+            <div>
+                <strong style="color: var(--warning-color);">{{ pending_contracts }}</strong> Pending
+            </div>
+            <div>
+                <strong style="color: var(--text-secondary);">{{ draft_contracts }}</strong> Draft
+            </div>
+        </div>
+        
+        <h3 style="margin-bottom: 1rem; font-size: 1.25rem;">Recent Contracts</h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Owner</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contract in recent_contracts %}
+                    <tr>
+                        <td>#{{ contract.id }}</td>
+                        <td><a href="{% url 'contracts:detail' contract.pk %}">{{ contract.title|truncatechars:40 }}</a></td>
+                        <td>{{ contract.owner.email }}</td>
+                        <td><span class="badge badge-{{ contract.status|lower }}">{{ contract.status }}</span></td>
+                        <td>{{ contract.created_at|date:"M j, Y" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5">No contracts yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Access Requests -->
+    <div class="data-table">
+        <h2 class="section-title">🔐 Access Requests Overview</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+            <div>
+                <strong style="color: var(--warning-color);">{{ pending_requests }}</strong> Pending
+            </div>
+            <div>
+                <strong style="color: var(--success-color);">{{ approved_requests }}</strong> Approved
+            </div>
+            <div>
+                <strong style="color: var(--error-color);">{{ denied_requests }}</strong> Denied
+            </div>
+        </div>
+        
+        <h3 style="margin-bottom: 1rem; font-size: 1.25rem;">Recent Requests</h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Contract</th>
+                        <th>Requester</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in recent_requests %}
+                    <tr>
+                        <td>#{{ req.id }}</td>
+                        <td><a href="{% url 'contracts:detail' req.contract.pk %}">{{ req.contract.title|truncatechars:30 }}</a></td>
+                        <td>{{ req.requester.email }}</td>
+                        <td><span class="badge badge-{{ req.status|lower }}">{{ req.status }}</span></td>
+                        <td>{{ req.created_at|date:"M j, Y" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5">No requests yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Secure Validations -->
+    <div class="data-table">
+        <h2 class="section-title">🛡️ Secure Computation Validations</h2>
+        <h3 style="margin-bottom: 1rem; font-size: 1.25rem;">Recent Validations</h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Request ID</th>
+                        <th>ZKP</th>
+                        <th>TEE</th>
+                        <th>SMPC</th>
+                        <th>Overall</th>
+                        <th>Validated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for val in recent_validations %}
+                    <tr>
+                        <td>#{{ val.request.id }}</td>
+                        <td>{% if val.zkp_verified %}✅{% else %}❌{% endif %}</td>
+                        <td>{% if val.tee_verified %}✅{% else %}❌{% endif %}</td>
+                        <td>{% if val.smpc_verified %}✅{% else %}❌{% endif %}</td>
+                        <td>{% if val.overall_verified %}✅{% else %}❌{% endif %}</td>
+                        <td>{{ val.validated_at|date:"M j, Y H:i"|default:"Pending" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6">No validations yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Recent Audit Events -->
+    <div class="data-table">
+        <h2 class="section-title">📊 Recent System Activity</h2>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Event Type</th>
+                        <th>User</th>
+                        <th>Details</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in recent_audit_events %}
+                    <tr>
+                        <td>{{ event.event_type }}</td>
+                        <td>{{ event.user.email|default:"System" }}</td>
+                        <td>{{ event.details|truncatechars:50 }}</td>
+                        <td>{{ event.timestamp|date:"M j, Y H:i:s" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4">No audit events yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top: 1rem; text-align: center;">
+            <a href="{% url 'audit:audit_list' %}" class="btn">View All Audit Events</a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
