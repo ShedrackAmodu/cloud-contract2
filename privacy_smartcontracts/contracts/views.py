@@ -42,13 +42,15 @@ class DashboardView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        contracts = context['contracts']
         
-        # Calculate statistics
-        context['total_contracts'] = contracts.count()
-        context['active_contracts'] = contracts.filter(status='ACTIVE').count()
-        context['pending_contracts'] = contracts.filter(status='PENDING_CONFIRMATION').count()
-        context['draft_contracts'] = contracts.filter(status='DRAFT').count()
+        # Get the original queryset (before pagination) for statistics
+        queryset = self.get_queryset()
+        
+        # Calculate statistics from the full queryset
+        context['total_contracts'] = queryset.count()
+        context['active_contracts'] = queryset.filter(status='ACTIVE').count()
+        context['pending_contracts'] = queryset.filter(status='PENDING_CONFIRMATION').count()
+        context['draft_contracts'] = queryset.filter(status='DRAFT').count()
         
         return context
 
