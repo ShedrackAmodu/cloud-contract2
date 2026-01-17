@@ -24,6 +24,7 @@ Administrators can access the comprehensive admin dashboard at `/audit/dashboard
 
 **Screenshot Location:** Homepage (`/`)
 
+
 The homepage provides an overview of the system with:
 - Hero section explaining the privacy-preserving smart contract concept
 - Statistics display (contracts secured, uptime, security breaches)
