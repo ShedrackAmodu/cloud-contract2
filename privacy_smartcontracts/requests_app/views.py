@@ -15,7 +15,8 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 @login_required
 def create_request(request, contract_id):
     contract = get_object_or_404(Contract, pk=contract_id)
-    if not contract.stored_object:
+    # Check if contract has any documents (stored_object is on ContractDocument, not Contract)
+    if not contract.documents.exists():
         messages.error(request, "This contract does not have a data file to request access to.")
         return redirect('contracts:public')
     if request.method == 'POST':
