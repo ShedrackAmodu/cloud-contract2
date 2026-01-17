@@ -26,11 +26,12 @@ class TEEGateway:
         self.measurement = self._calculate_measurement()
 
     def _calculate_measurement(self):
-        """Calculate code/data measurement hash (simulates PCR measurement)"""
+        """Calculate code/data measurement hash using SHA-3-256 (simulates PCR measurement)"""
         # In real TEE, this would be PCR values from TPM/SGX
-        code_hash = hashlib.sha256(b"privacy_smart_contract_tee_code_v1.0").hexdigest()
-        data_hash = hashlib.sha256(b"secure_computation_data_integrity").hexdigest()
-        return hashlib.sha256((code_hash + data_hash).encode()).hexdigest()
+        # Upgraded to SHA-3-256 for enhanced security
+        code_hash = hashlib.sha3_256(b"privacy_smart_contract_tee_code_v2.0").hexdigest()
+        data_hash = hashlib.sha3_256(b"secure_computation_data_integrity").hexdigest()
+        return hashlib.sha3_256((code_hash + data_hash).encode()).hexdigest()
 
     def perform_secure_computation(self, request_data):
         """
@@ -38,8 +39,8 @@ class TEEGateway:
         """
         start_time = time.time()
 
-        # Verify input integrity
-        input_hash = hashlib.sha256(json.dumps(request_data, sort_keys=True).encode()).hexdigest()
+        # Verify input integrity using SHA-3-256
+        input_hash = hashlib.sha3_256(json.dumps(request_data, sort_keys=True).encode()).hexdigest()
 
         # Simulate TEE computation (in real TEE, this runs in isolated environment)
         computation_result = {
@@ -66,9 +67,13 @@ class TEEGateway:
             'nonce': secrets.token_hex(16)
         }
 
-        # Sign attestation with TEE key
+        # Sign attestation with TEE key using SHA-3-256 for enhanced security
         attestation_bytes = json.dumps(attestation_data, sort_keys=True).encode()
-        signature = self.attestation_key.sign(attestation_bytes, ec.ECDSA(hashes.SHA256()))
+        # Hash with SHA-3-256 for enhanced security before signing
+        attestation_hash = hashlib.sha3_256(attestation_bytes).digest()
+        # Use Prehashed with SHA3-256 for signing
+        from cryptography.hazmat.primitives import hashes as crypto_hashes
+        signature = self.attestation_key.sign(attestation_hash, ec.ECDSA(crypto_hashes.SHA3_256()))
 
         # Get public key for verification
         public_key = self.attestation_key.public_key()
@@ -96,8 +101,12 @@ class TEEGateway:
 
             attestation_bytes = json.dumps(attestation['attestation_data'], sort_keys=True).encode()
             signature_bytes = bytes.fromhex(attestation['signature'])
-
-            public_key.verify(signature_bytes, attestation_bytes, ec.ECDSA(hashes.SHA256()))
+            
+            # Hash with SHA-3-256 before verification for enhanced security
+            attestation_hash = hashlib.sha3_256(attestation_bytes).digest()
+            # Verify using SHA3-256
+            from cryptography.hazmat.primitives import hashes as crypto_hashes
+            public_key.verify(signature_bytes, attestation_hash, ec.ECDSA(crypto_hashes.SHA3_256()))
             return True
         except Exception:
             return False

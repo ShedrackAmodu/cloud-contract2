@@ -52,7 +52,7 @@ class PerformanceMeasurer:
         start = time.time()
         # Simulate creating audit request payload
         request_payload = {
-            'file_hash': hashlib.sha256(file_data).hexdigest(),
+            'file_hash': hashlib.sha3_256(file_data).hexdigest(),  # Upgraded to SHA-3-256
             'file_size': len(file_data),
             'timestamp': datetime.now().isoformat(),
             'requester_id': secrets.token_hex(16)
@@ -80,7 +80,7 @@ class PerformanceMeasurer:
         response_payload = {
             'request_id': request_payload['requester_id'],
             'verified': True,
-            'file_integrity': hashlib.sha256(file_data).hexdigest(),
+            'file_integrity': hashlib.sha3_256(file_data).hexdigest(),  # Upgraded to SHA-3-256
             'timestamp': datetime.now().isoformat()
         }
         response_bytes = json.dumps(response_payload, sort_keys=True).encode()
@@ -95,8 +95,8 @@ class PerformanceMeasurer:
         start = time.time()
         # Simulate smart contract processing
         if verification_result:
-            # Additional validation logic
-            integrity_check = hashlib.sha256(file_data).hexdigest() == response_payload['file_integrity']
+            # Additional validation logic using SHA-3-256
+            integrity_check = hashlib.sha3_256(file_data).hexdigest() == response_payload['file_integrity']
         times['process_verification'] = (time.time() - start) * 1000
         
         times['total'] = times['verify_audit_response'] + times['process_verification']
@@ -111,8 +111,8 @@ class PerformanceMeasurer:
         
         # 1. Process audit request (receive and validate)
         start = time.time()
-        # Simulate receiving and processing audit request
-        file_hash = hashlib.sha256(file_data).hexdigest()
+        # Simulate receiving and processing audit request using SHA-3-256
+        file_hash = hashlib.sha3_256(file_data).hexdigest()  # Upgraded to SHA-3-256
         file_size = len(file_data)
         # Simulate cloud processing overhead
         time.sleep(0.001)  # Simulate network/processing delay
@@ -159,7 +159,7 @@ class PerformanceMeasurer:
             
             # Create request payload for smart contract
             request_payload = {
-                'file_hash': hashlib.sha256(file_data).hexdigest(),
+                'file_hash': hashlib.sha3_256(file_data).hexdigest(),  # Upgraded to SHA-3-256
                 'file_size': len(file_data),
                 'requester_id': secrets.token_hex(16)
             }
