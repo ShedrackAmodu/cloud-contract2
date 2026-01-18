@@ -1063,7 +1063,7 @@
               <a class="nav-link {% if 'my_requests' in request.path %}active{% endif %}" href="{% url 'requests_app:my_requests' %}">My Requests</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link {% if 'tee_dashboard' in request.path %}active{% endif %}" href="{% url 'secure_computation:tee_dashboard' %}">SARRT Security</a>
+              <a class="nav-link {% if 'tee_dashboard' in request.path %}active{% endif %}" href="{% url 'secure_computation:tee_dashboard' %}">SMART Security</a>
             </li>
             {% if user.is_staff %}
               <li class="nav-item">
