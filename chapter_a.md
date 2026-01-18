@@ -581,3 +581,92 @@ All security mechanisms are accessible through the user interface, providing tra
 4. Analyze trends and compare performance across components
 5. Document findings with graph interpretations
 
+## 4.9 System Limitations
+
+This section provides a comprehensive analysis of the limitations of the Privacy-Preserving Smart Contracts system. These limitations are important to acknowledge for academic integrity and to guide future research and development efforts.
+
+### 4.9.1 Cryptographic Implementation Limitations
+
+**Zero-Knowledge Proofs (ZKP) Simplification**: The ZKP implementation uses simplified proof generation rather than production-grade zero-knowledge proof systems. The current implementation generates token-based proof data rather than actual cryptographic proofs. No integration with established ZKP libraries (zk-SNARKs, zk-STARKs, or Bulletproofs) is present. Proof verification is deterministic without actual cryptographic verification. This limitation means the system cannot provide mathematical guarantees of privacy preservation, and proofs cannot be independently verified by third parties.
+
+**Secure Multi-Party Computation (SMPC) Simulation**: SMPC is implemented as a simulation rather than a true distributed multi-party computation protocol. The system generates random secret shares without actual secret sharing algorithms, and there is no distributed computation across multiple parties. This means the system cannot guarantee privacy in multi-party scenarios and provides no protection against collusion between parties.
+
+**Trusted Execution Environment (TEE) Software Implementation**: TEE functionality is implemented using software-based cryptographic primitives rather than hardware-backed TEE. The system uses ECDSA signatures and SHA-3-256 hashing in software, not hardware enclaves (Intel SGX, AMD SEV, ARM TrustZone). Enclave isolation is simulated rather than enforced by hardware. This limitation means the system cannot provide hardware-level security guarantees and is vulnerable to software-based attacks that hardware TEE would prevent.
+
+### 4.9.2 Blockchain and Smart Contract Limitations
+
+**No Blockchain Integration**: Despite being called "smart contracts," the system does not integrate with any blockchain platform. Contracts are stored in a traditional database rather than on a blockchain, meaning there are no immutability guarantees provided by blockchain consensus. Contract execution is centralized within the Django application, creating a single point of failure.
+
+**Centralized Oracle Service**: The oracle attestation service is centralized and mock-based rather than decentralized. The oracle runs as part of the Django application, not as an independent service, and there is no integration with decentralized oracle networks. This creates a single point of failure for attestation services.
+
+### 4.9.3 Storage and Infrastructure Limitations
+
+**Local File Storage**: The system uses local file storage rather than cloud storage services (AWS S3, Google Cloud Storage, Azure Blob Storage). This limits scalability for large files and creates a single point of failure for data storage.
+
+**Single-Server Architecture**: The system is designed for single-server deployment without distributed architecture. There is no load balancing or horizontal scaling, which means the system cannot handle high concurrent user loads and has limited fault tolerance.
+
+### 4.9.4 Security Limitations
+
+**Encryption Key Management**: Encryption keys are managed within the application rather than using dedicated key management services. There is no integration with Hardware Security Modules (HSM) or cloud key management services, and key rotation is manual. This means keys can be compromised if the application is breached.
+
+**Access Control Limitations**: Access control is role-based but lacks fine-grained permissions and attribute-based access control (ABAC). There are no time-based or location-based access restrictions, limiting flexibility for enterprise requirements.
+
+**Audit Log Security**: Audit logs are stored in the same database as application data without tamper-proof mechanisms. Logs can be modified or deleted by database administrators, creating compliance issues for regulated industries.
+
+### 4.9.5 Performance and Scalability Limitations
+
+**Computational Performance**: The system is not optimized for high-performance computations. There is no asynchronous task queue for background processing, no caching layer, and database queries are not optimized for large datasets. This results in slow response times under load.
+
+**File Size Limitations**: The system does not handle very large files efficiently. Files are loaded entirely into memory for encryption/decryption, with no streaming or chunked processing. This means the system cannot process files larger than available server memory.
+
+**Database Scalability**: Database design does not support horizontal scaling or sharding. There is no database replication or clustering, creating a single point of failure and limiting scalability for large datasets.
+
+### 4.9.6 Functional Limitations
+
+**Limited Contract Types**: The system supports only basic contract types with simple access policies. There is no support for complex contract logic, conditional execution, or advanced policy expression languages.
+
+**No Real-Time Collaboration**: The system does not support real-time collaboration or notifications. There is no WebSocket support for real-time updates, and users must refresh pages to see updates.
+
+**Limited Integration Capabilities**: The system has limited integration with external systems. There is no REST API for external system integration, no webhook support, and no integration with identity providers or document management systems.
+
+### 4.9.7 Testing and Quality Assurance Limitations
+
+**Limited Test Coverage**: The system lacks comprehensive test coverage, especially for security-critical components. There are no unit tests for cryptographic operations, no integration tests for end-to-end workflows, and no security penetration testing.
+
+**No Formal Security Audit**: The system has not undergone formal security auditing or cryptographic review. There is no third-party security audit, no cryptographic protocol verification, and no compliance certification.
+
+### 4.9.8 Deployment and Operations Limitations
+
+**Limited Deployment Options**: The system is primarily designed for single-server deployment. There is no container orchestration configuration, limited cloud platform support, and no automated deployment pipelines.
+
+**No Monitoring and Observability**: The system lacks comprehensive monitoring, logging, and observability tools. There is no application performance monitoring, no centralized logging, and no metrics collection or alerting system.
+
+### 4.9.9 Compliance and Regulatory Limitations
+
+**No Regulatory Compliance**: The system does not address specific regulatory requirements (GDPR, HIPAA, etc.). There are no data retention policies enforcement, no right-to-deletion implementation, and no consent management system.
+
+**No Data Residency Controls**: The system does not enforce data residency or data sovereignty requirements. There are no geographic restrictions on data storage or data localization controls.
+
+### 4.9.10 Academic and Research Limitations
+
+**Proof of Concept Scope**: The system is designed as a proof of concept (PoC) for academic research, not a production system. It was developed as a demonstration of concepts rather than production readiness, and many features are simplified or simulated. The system is suitable for research and demonstration purposes but not ready for production deployment without significant enhancements.
+
+### 4.9.11 Summary of Limitations
+
+The Privacy-Preserving Smart Contracts system demonstrates the conceptual framework and architecture for privacy-preserving smart contracts in cloud computing. However, as a proof of concept, it has significant limitations in:
+
+1. **Cryptographic Implementation**: ZKP and SMPC are simplified/simulated; TEE is software-based
+2. **Blockchain Integration**: No blockchain platform integration; centralized oracle service
+3. **Infrastructure**: Local storage; single-server architecture
+4. **Security**: Basic key management; limited access control; non-tamper-proof audit logs
+5. **Performance**: Not optimized for high load; limited file size handling; no database scaling
+6. **Functionality**: Basic contract types; no real-time features; limited integrations
+7. **Quality Assurance**: Limited testing; no security audit
+8. **Operations**: Limited deployment options; no monitoring
+9. **Compliance**: No regulatory compliance features
+10. **Research Scope**: PoC design, not production-ready
+
+These limitations should be addressed through future development work before considering production deployment, especially in security-critical or regulated environments. The system serves as a valuable research platform and demonstration of privacy-preserving techniques, but requires substantial enhancement to meet enterprise production standards.
+
+For a detailed analysis of each limitation, refer to the `LIMITATIONS.md` document in the project repository.
+
