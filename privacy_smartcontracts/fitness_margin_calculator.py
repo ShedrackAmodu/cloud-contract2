@@ -158,7 +158,7 @@ class FitnessMarginCalculator:
             for req in attested_requests:
                 attestation = req.attestations.first()
                 if attestation and req.processed_at:
-                    delta = attestation.created_at - req.processed_at
+                    delta = attestation.issued_at - req.processed_at
                     attestation_times.append(delta.total_seconds())
             
             if attestation_times:
